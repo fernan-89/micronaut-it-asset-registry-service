@@ -30,8 +30,8 @@ public class HashServiceAdapter implements HashServicePort {
 
     private static final Logger log = LoggerFactory.getLogger(HashServiceAdapter.class);
 
-    private static final String TENANT_ID = "party-reference-data-directory";
-    private static final String SOURCE_SERVICE = "party-reference-data-directory-service";
+    private static final String TENANT_ID = "it-asset-registry";
+    private static final String SOURCE_SERVICE = "it-asset-registry-service";
     private static final String SYSTEM_EXECUTOR = "system";
     private static final String ALGORITHM = "SHA3_512";
 
