@@ -2,7 +2,7 @@
 <!-- ============================================================================================== -->
 <!-- /**                                                                                            -->
 <!--  * @file        logback.xml                                                                    -->
-<!--  * @module      Thinklab Infrastructure / Company Service & Forensic Audit                     -->
+<!--  * @module      Thinklab Infrastructure / IT Asset Registry Service & Forensic Audit                     -->
 <!--  *                                                                                             -->
 <!--  * @description Ultra-high-throughput, non-blocking asynchronous logging topology.             -->
 <!--  *              Hardened for reactive event loops (Project Reactor/Netty) to guarantee zero    -->
@@ -55,7 +55,7 @@
         </rollingPolicy>
 
         <encoder class="net.logstash.logback.encoder.LogstashEncoder">
-            <customFields>{"service":"thinklab-company-service","domain":"company-management"}</customFields>
+            <customFields>{"service":"thinklab-it-asset-registry-service","domain":"it-asset-registry"}</customFields>
         </encoder>
     </appender>
 

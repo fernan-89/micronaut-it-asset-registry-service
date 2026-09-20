@@ -48,7 +48,7 @@ LABEL maintainer="Thinklab Core Infrastructure & High-Assurance Engineering Team
 LABEL version="v3.5.0-NASA-SRE-PROD-STABLE"
 LABEL description="Thinklab Company Service - Mission-Critical Reactive Micronaut 4 Runtime"
 LABEL enviroment="Personal Home-Lab for Development"
-LABEL git-repo="https://github.com/fernan-89/micronaut-company-service"
+LABEL git-repo="https://github.com/fernan-89/micronaut-it-asset-registry-service"
 
 WORKDIR /app
 

@@ -1,7 +1,7 @@
 # ==============================================================================================
 # /**
 #  * @file        application.yml
-#  * @module      Thinklab Company Service Core Configuration
+#  * @module      Thinklab IT Asset Registry Service Core Configuration
 #  * @description Centralized configuration manifest for the Micronaut 4.x runtime.
 #  *              Orchestrates application identity, Netty reactive engine, OpenAPI/Swagger
 #  *              documentation, health/metrics telemetry, and high-performance database
@@ -16,7 +16,7 @@
 
 micronaut:
   application:
-    name: thinklab-asset-registry-service
+    name: thinklab-it-asset-registry-service
     instance:
       id: ${random.shortuuid}
 
