@@ -21,6 +21,7 @@
 plugins {
     id 'io.micronaut.application' version '4.4.2'
     id 'io.micronaut.aot'         version '4.4.2'
+    id 'jacoco'
 }
 
 group   = 'com.thinklab'
@@ -188,4 +189,43 @@ micronaut {
         optimizeNetty          = true
         replaceLogbackXml      = false
     }
+}
+
+// ==============================================================================================
+// Coverage evidence (quality gate). The report is a by-product of every `test` run;
+// the floor below is enforced by `./gradlew check` so coverage can only ratchet upwards.
+// ==============================================================================================
+jacoco {
+    toolVersion = '0.8.12'
+}
+
+tasks.named('jacocoTestReport') {
+    dependsOn tasks.named('test')
+    reports {
+        xml.required = true
+        html.required = true
+        csv.required = true
+    }
+    classDirectories.setFrom(files(classDirectories.files.collect {
+        fileTree(dir: it, exclude: ['**/$*', '**/*$Definition*', '**/*$Introspection*', '**/*$Intercepted*', '**/Application.class'])
+    }))
+}
+
+tasks.named('test') {
+    finalizedBy tasks.named('jacocoTestReport')
+}
+
+tasks.named('jacocoTestCoverageVerification') {
+    dependsOn tasks.named('test')
+    violationRules {
+        rule {
+            limit { counter = 'LINE';   value = 'COVEREDRATIO'; minimum = 0.60 }
+            limit { counter = 'BRANCH'; value = 'COVEREDRATIO'; minimum = 0.40 }
+        }
+    }
+    classDirectories.setFrom(tasks.named('jacocoTestReport').get().classDirectories)
+}
+
+tasks.named('check') {
+    dependsOn tasks.named('jacocoTestCoverageVerification')
 }
