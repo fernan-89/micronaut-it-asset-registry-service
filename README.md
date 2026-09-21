@@ -119,3 +119,7 @@ docker build -t thinklab-asset-registry-service:latest .
 
 `docs/adr/`: 001 hexagonal reactive stack · 003 asset forensic audit ledger · 005 UUID identity
 sovereignty · 013 BIAN service domain conventions · 017 asset lifecycle FSM and HTTP 422.
+
+## License
+
+Proprietary - all rights reserved. See [LICENSE](LICENSE). This software is not open source.
