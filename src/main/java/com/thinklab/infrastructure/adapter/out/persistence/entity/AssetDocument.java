@@ -74,7 +74,7 @@ public class AssetDocument {
                     entry.action(),
                     entry.executor(),
                     entry.fromStatus() != null ? entry.fromStatus().name() : null,
-                    entry.toStatus() != null ? entry.toStatus().name() : null,
+                    entry.toStatus().name(),
                     entry.detail()
             );
         }

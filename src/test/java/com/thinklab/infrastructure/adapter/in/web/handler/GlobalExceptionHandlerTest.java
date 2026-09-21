@@ -115,4 +115,14 @@ class GlobalExceptionHandlerTest {
         Mockito.when(request.getAttribute(Mockito.eq("traceId"), Mockito.eq(String.class))).thenReturn(Optional.of("attr-trace"));
         assertProblem(exceptionHandler.handle(request, new AssetNotFoundException("x")), HttpStatus.NOT_FOUND, "ERR-AST-00404");
     }
+
+    @Test
+    @DisplayName("a trace id from the X-Trace-Id header is honoured and a blank one replaced")
+    void traceIdFromHeader() {
+        Mockito.when(headers.get("X-Trace-Id")).thenReturn("header-trace");
+        assertProblem(exceptionHandler.handle(request, new AssetNotFoundException("x")), HttpStatus.NOT_FOUND, "ERR-AST-00404");
+
+        Mockito.when(headers.get("X-Trace-Id")).thenReturn(" ");
+        assertProblem(exceptionHandler.handle(request, new AssetNotFoundException("x")), HttpStatus.NOT_FOUND, "ERR-AST-00404");
+    }
 }

@@ -27,10 +27,10 @@ public final class AssetMapper {
                 asset.getId(),
                 asset.getOrganisationId(),
                 asset.getName(),
-                asset.getCategory() != null ? asset.getCategory().name() : null,
+                asset.getCategory().name(),
                 asset.getSerialNumber(),
                 asset.getSpecifications(),
-                asset.getStatus() != null ? asset.getStatus().name() : null,
+                asset.getStatus().name(),
                 asset.getAssignedToUserId(),
                 asset.getLocationId(),
                 asset.getCreatedAt(),
@@ -44,7 +44,7 @@ public final class AssetMapper {
                 entry.action(),
                 entry.executor(),
                 entry.fromStatus() != null ? entry.fromStatus().name() : null,
-                entry.toStatus() != null ? entry.toStatus().name() : null,
+                entry.toStatus().name(),
                 entry.detail()
         );
     }
