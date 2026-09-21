@@ -38,10 +38,21 @@ application {
 }
 
 repositories {
+    mavenLocal()
     mavenCentral()
+    maven {
+        // CI resolves the shared kit from GitHub Packages (ADR-001 of thinklab-service-kit).
+        url = uri('https://maven.pkg.github.com/fernan-89/thinklab-service-kit')
+        credentials {
+            username = System.getenv('GITHUB_ACTOR')
+            password = System.getenv('GITHUB_TOKEN')
+        }
+    }
 }
 
 dependencies {
+    implementation         'com.thinklab:thinklab-service-kit:0.1.0'
+
     // ------------------------------------------------------------------------------------------
     // /**
     //  * @layer       AST Manipulation & Compile-time Metaprogramming Processors

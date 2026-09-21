@@ -1,6 +1,6 @@
 package com.thinklab;
 
-import com.thinklab.infrastructure.telemetry.ReactorMdcBridge;
+import com.thinklab.kit.telemetry.ReactorMdcBridge;
 import io.micronaut.runtime.Micronaut;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.slf4j.Logger;
