@@ -31,6 +31,7 @@ import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -101,7 +102,7 @@ public class AssetController {
 
     /** Behavior Qualifier: {@code retrieve} (collection). Lists Assets scoped to a tenant. */
     @Get("/retrieve")
-    public Flux<AssetResponse> retrieveAll(
+    public Mono<List<AssetResponse>> retrieveAll(
             @Header(TENANT_HEADER) @NotBlank String tenantId,
             @QueryValue @Nullable AssetStatus status,
             @QueryValue @Nullable AssetCategory category
@@ -109,7 +110,7 @@ public class AssetController {
         log.info("[ACTION: RETRIEVE_ASSETS] Received request to list assets for organisation: {} status: {} category: {}",
                 tenantId, status, category);
 
-        return retrieveAssetsUseCase.execute(UUID.fromString(tenantId), status, category);
+        return Mono.defer(() -> retrieveAssetsUseCase.execute(UUID.fromString(tenantId), status, category).collectList());
     }
 
     /** Behavior Qualifier: {@code update}. Updates the descriptive information of an Asset. */

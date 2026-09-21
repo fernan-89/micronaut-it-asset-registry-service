@@ -153,4 +153,4 @@ integrations:
 # ----------------------------------------------------------------------------------------------
 warmup:
   endpoints:
-    hash-service: ${HASH_SERVICE_URL:`http://localhost:8080`}
+    hash-service: ${HASH_SERVICE_URL:`http://localhost:8080`}/health/liveness

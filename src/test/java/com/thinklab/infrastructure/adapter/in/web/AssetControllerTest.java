@@ -30,6 +30,7 @@ import reactor.test.StepVerifier;
 
 import java.time.Instant;
 import java.util.Map;
+import java.util.List;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -129,9 +130,9 @@ class AssetControllerTest {
         when(retrieveAssetsUseCase.execute(organisationId, null, null)).thenReturn(Flux.just(sample, sample));
 
         StepVerifier.create(controller.retrieveAll(organisationId.toString(), AssetStatus.READY, AssetCategory.SERVER))
-                .expectNext(sample).verifyComplete();
+                .expectNext(List.of(sample)).verifyComplete();
         StepVerifier.create(controller.retrieveAll(organisationId.toString(), null, null))
-                .expectNextCount(2).verifyComplete();
+                .assertNext(list -> assertEquals(2, list.size())).verifyComplete();
     }
 
     @Test
