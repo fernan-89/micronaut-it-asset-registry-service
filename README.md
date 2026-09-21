@@ -75,8 +75,7 @@ any non-terminal -> DECOMMISSIONED (terminal, no exit, no DELETE)
 | error_code | HTTP | Meaning |
 |---|---|---|
 | `ERR-AST-00404` | 404 | Asset not found |
-| `ERR-AST-00409` | 409 | Serial number already registered for the Organisation |
-| `ERR-AST-00422` | 422 | Illegal lifecycle transition or policy violation (state conflict) |
+| `ERR-AST-00409` | 409 | Serial number already registered, illegal lifecycle transition or policy violation (state conflict) |
 | `ERR-VALIDATION-00400` | 400 | Payload/header/identifier validation failure |
 | `ERR-INTERNAL-00500` | 500 | Unexpected technical failure |
 
@@ -105,7 +104,7 @@ docker build -t thinklab-asset-registry-service:latest .
 
 * **Health:** `http://localhost:8083/health`
 * **Swagger UI:** `http://localhost:8083/swagger-ui`
-* **Postman suite:** `docs/postman/` (lifecycle + negative/422 scenarios)
+* **Postman suite:** `docs/postman/` (lifecycle + negative/409 scenarios)
 
 ### Configuration
 
@@ -118,7 +117,7 @@ docker build -t thinklab-asset-registry-service:latest .
 ## Architecture Decision Records
 
 `docs/adr/`: 001 hexagonal reactive stack · 003 asset forensic audit ledger · 005 UUID identity
-sovereignty · 013 BIAN service domain conventions · 017 asset lifecycle FSM and HTTP 422.
+sovereignty · 013 BIAN service domain conventions · 017 asset lifecycle FSM (HTTP contract superseded by 019) · 019 HTTP 409 for state conflicts.
 
 ## License
 

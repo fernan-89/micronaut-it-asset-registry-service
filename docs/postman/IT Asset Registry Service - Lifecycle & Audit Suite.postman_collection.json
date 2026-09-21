@@ -27,7 +27,7 @@
   "info": {
     "_exporter_id": "39879181",
     "_postman_id": "c4d6e8f0-3a5b-4c7d-9e1f-4a6b8c0d2e3f",
-    "description": "Enterprise-grade E2E Postman Suite for the IT Asset Registry Service Domain (BIAN-aligned, ADR-001/003/005/013/017). Covers the complete Asset lifecycle under /it-asset-registry/v1 (initiate, retrieve, update, assignment/update, control/ready|deploy|maintenance|decommission), tenant-scoped filtered listing, the immutable audit ledger, mandatory X-Tenant-Id/X-Executor auditing, RFC 7807 error_code assertions (400/404/409/422) and W3C traceparent correlation. Requires an organisationId environment variable populated from the Party Reference Data Directory Service Domain.",
+    "description": "Enterprise-grade E2E Postman Suite for the IT Asset Registry Service Domain (BIAN-aligned, ADR-001/003/005/013/017). Covers the complete Asset lifecycle under /it-asset-registry/v1 (initiate, retrieve, update, assignment/update, control/ready|deploy|maintenance|decommission), tenant-scoped filtered listing, the immutable audit ledger, mandatory X-Tenant-Id/X-Executor auditing, RFC 7807 error_code assertions (400/404/409) and W3C traceparent correlation. Requires an organisationId environment variable populated from the Party Reference Data Directory Service Domain.",
     "name": "IT Asset Registry Service - Lifecycle & Audit Suite",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
@@ -1120,18 +1120,18 @@
               "listen": "test",
               "script": {
                 "exec": [
-                  "pm.test('Status is 422', () => pm.response.to.have.status(422));",
+                  "pm.test('Status is 409', () => pm.response.to.have.status(409));",
                   "const json = pm.response.json();",
-                  "pm.test('RFC 7807 error_code is ERR-AST-00422', () => {",
-                  "    pm.expect(json.status).to.eql(422);",
-                  "    pm.expect(json.error_code).to.eql('ERR-AST-00422');",
+                  "pm.test('RFC 7807 error_code is ERR-AST-00409', () => {",
+                  "    pm.expect(json.status).to.eql(409);",
+                  "    pm.expect(json.error_code).to.eql('ERR-AST-00409');",
                   "});"
                 ],
                 "type": "text/javascript"
               }
             }
           ],
-          "name": "08. Control: Deploy Already-DECOMMISSIONED Asset - Terminal Violation (422)",
+          "name": "08. Control: Deploy Already-DECOMMISSIONED Asset - Terminal Violation (409)",
           "request": {
             "header": [
               {
@@ -1161,18 +1161,18 @@
               "listen": "test",
               "script": {
                 "exec": [
-                  "pm.test('Status is 422', () => pm.response.to.have.status(422));",
+                  "pm.test('Status is 409', () => pm.response.to.have.status(409));",
                   "const json = pm.response.json();",
-                  "pm.test('RFC 7807 error_code is ERR-AST-00422', () => {",
-                  "    pm.expect(json.status).to.eql(422);",
-                  "    pm.expect(json.error_code).to.eql('ERR-AST-00422');",
+                  "pm.test('RFC 7807 error_code is ERR-AST-00409', () => {",
+                  "    pm.expect(json.status).to.eql(409);",
+                  "    pm.expect(json.error_code).to.eql('ERR-AST-00409');",
                   "});"
                 ],
                 "type": "text/javascript"
               }
             }
           ],
-          "name": "09. Update Already-DECOMMISSIONED Asset (422)",
+          "name": "09. Update Already-DECOMMISSIONED Asset (409)",
           "request": {
             "body": {
               "mode": "raw",
@@ -1258,18 +1258,18 @@
               "listen": "test",
               "script": {
                 "exec": [
-                  "pm.test('Status is 422', () => pm.response.to.have.status(422));",
+                  "pm.test('Status is 409', () => pm.response.to.have.status(409));",
                   "const json = pm.response.json();",
-                  "pm.test('RFC 7807 error_code is ERR-AST-00422', () => {",
-                  "    pm.expect(json.status).to.eql(422);",
-                  "    pm.expect(json.error_code).to.eql('ERR-AST-00422');",
+                  "pm.test('RFC 7807 error_code is ERR-AST-00409', () => {",
+                  "    pm.expect(json.status).to.eql(409);",
+                  "    pm.expect(json.error_code).to.eql('ERR-AST-00409');",
                   "});"
                 ],
                 "type": "text/javascript"
               }
             }
           ],
-          "name": "11. Control: Deploy a PROVISIONED Asset - Illegal Jump (422)",
+          "name": "11. Control: Deploy a PROVISIONED Asset - Illegal Jump (409)",
           "request": {
             "header": [
               {
@@ -1335,11 +1335,11 @@
               "listen": "test",
               "script": {
                 "exec": [
-                  "pm.test('Status is 422', () => pm.response.to.have.status(422));",
+                  "pm.test('Status is 409', () => pm.response.to.have.status(409));",
                   "const json = pm.response.json();",
-                  "pm.test('RFC 7807 error_code is ERR-AST-00422', () => {",
-                  "    pm.expect(json.status).to.eql(422);",
-                  "    pm.expect(json.error_code).to.eql('ERR-AST-00422');",
+                  "pm.test('RFC 7807 error_code is ERR-AST-00409', () => {",
+                  "    pm.expect(json.status).to.eql(409);",
+                  "    pm.expect(json.error_code).to.eql('ERR-AST-00409');",
                   "});",
                   "pm.test('Detail explains the idempotency violation', () => pm.expect(json.detail).to.include('Idempotency Violation'));"
                 ],
@@ -1347,7 +1347,7 @@
               }
             }
           ],
-          "name": "13. Control: Ready Twice - Idempotency Violation (422)",
+          "name": "13. Control: Ready Twice - Idempotency Violation (409)",
           "request": {
             "header": [
               {
@@ -1377,11 +1377,11 @@
               "listen": "test",
               "script": {
                 "exec": [
-                  "pm.test('Status is 422', () => pm.response.to.have.status(422));",
+                  "pm.test('Status is 409', () => pm.response.to.have.status(409));",
                   "const json = pm.response.json();",
-                  "pm.test('RFC 7807 error_code is ERR-AST-00422', () => {",
-                  "    pm.expect(json.status).to.eql(422);",
-                  "    pm.expect(json.error_code).to.eql('ERR-AST-00422');",
+                  "pm.test('RFC 7807 error_code is ERR-AST-00409', () => {",
+                  "    pm.expect(json.status).to.eql(409);",
+                  "    pm.expect(json.error_code).to.eql('ERR-AST-00409');",
                   "});",
                   "pm.test('Detail explains the missing location', () => pm.expect(json.detail).to.include('location'));"
                 ],
@@ -1389,7 +1389,7 @@
               }
             }
           ],
-          "name": "14. Control: Deploy Without Location - Policy Violation (422)",
+          "name": "14. Control: Deploy Without Location - Policy Violation (409)",
           "request": {
             "header": [
               {

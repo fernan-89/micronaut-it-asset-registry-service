@@ -179,7 +179,7 @@ class AssetControllerTest {
     }
 
     @Test
-    @DisplayName("a control endpoint should surface an illegal transition (422) from the use case")
+    @DisplayName("a control endpoint should surface an illegal transition (409) from the use case")
     void controlIllegalTransition() {
         when(controlAssetUseCase.execute(assetId, ControlAssetUseCase.Action.DEPLOY, EXECUTOR))
                 .thenReturn(Mono.error(new InvalidAssetStatusException("illegal")));

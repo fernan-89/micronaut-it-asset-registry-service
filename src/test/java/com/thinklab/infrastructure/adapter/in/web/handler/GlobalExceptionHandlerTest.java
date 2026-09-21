@@ -72,10 +72,10 @@ class GlobalExceptionHandlerTest {
     }
 
     @Test
-    @DisplayName("InvalidAssetStatusException maps to 422 Unprocessable Entity with ERR-AST-00422 (AST-03)")
-    void stateConflictIs422() {
+    @DisplayName("InvalidAssetStatusException maps to 409 Conflict with ERR-AST-00409 (AST-03)")
+    void stateConflictIs409() {
         Map<String, Object> body = assertProblem(exceptionHandler.handle(request, new InvalidAssetStatusException("Illegal transition")),
-                HttpStatus.UNPROCESSABLE_ENTITY, "ERR-AST-00422");
+                HttpStatus.CONFLICT, "ERR-AST-00409");
 
         assertEquals("Illegal transition", body.get("detail"));
     }

@@ -1,7 +1,7 @@
 # ADR-017: Asset Lifecycle State Machine and the HTTP 422 State-Conflict Contract
 
 ## Status
-Accepted
+Accepted — the HTTP status decision (422) is superseded by [ADR-019](019-http-409-for-state-conflicts.md); the lifecycle and deployment policy stand.
 
 ## Context
 The IT Asset Registry tracks a physical or logical asset from the moment it is registered until it

@@ -27,10 +27,7 @@ import java.util.UUID;
  * Directory Service Domains' exception handler, so every platform service emits an identical
  * RFC 7807 "Problem Details" shape (including {@code error_code}).
  *
- * <p><b>HTTP 422 State Conflict (AST-03):</b> an illegal Asset lifecycle transition
- * ({@code ERR-AST-00422}) is a well-formed request that is impossible in the aggregate's current
- * state, so it maps to 422 Unprocessable Entity, distinct from the 409 used for identity collisions
- * ({@code ERR-AST-00409}).
+ * <p><b>HTTP 409 State Conflict (AST-03, ADR-019):</b> an illegal Asset lifecycle transition, like a duplicate serial number, is a well-formed request that collides with the current state, so both map to 409 Conflict ({@code ERR-AST-00409}) — the same contract as every other Service Domain.
  */
 @Produces
 @Singleton
@@ -87,8 +84,7 @@ public class GlobalExceptionHandler implements ExceptionHandler<Throwable, HttpR
     private HttpResponse<Map<String, Object>> handleBusinessException(BusinessException ex, String path) {
         HttpStatus status = switch (ex.getErrorCode()) {
             case "ERR-AST-00404" -> HttpStatus.NOT_FOUND;
-            case "ERR-AST-00409" -> HttpStatus.CONFLICT;
-            default -> HttpStatus.UNPROCESSABLE_ENTITY;
+            default -> HttpStatus.CONFLICT;
         };
 
         Map<String, Object> problem = createProblemDetails(

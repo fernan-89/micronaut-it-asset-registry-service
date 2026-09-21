@@ -211,7 +211,7 @@ class AssetTest {
 
         InvalidAssetStatusException ex = assertThrows(InvalidAssetStatusException.class, () -> asset.assign(holderId, null, EXECUTOR));
 
-        assertEquals("ERR-AST-00422", ex.getErrorCode());
+        assertEquals("ERR-AST-00409", ex.getErrorCode());
         assertEquals(locationId, asset.getLocationId());
     }
 
@@ -285,7 +285,7 @@ class AssetTest {
 
         InvalidAssetStatusException ex = assertThrows(InvalidAssetStatusException.class, () -> asset.deploy(EXECUTOR));
 
-        assertEquals("ERR-AST-00422", ex.getErrorCode());
+        assertEquals("ERR-AST-00409", ex.getErrorCode());
         assertTrue(ex.getMessage().contains("location"));
         assertEquals(AssetStatus.READY, asset.getStatus());
         assertEquals(trailSize, asset.getAuditTrail().size());

@@ -16,8 +16,7 @@ import java.util.UUID;
  * Use Case governing the Asset lifecycle (BIAN Behavior Qualifier: {@code control}).
  *
  * <p><b>State Machine Enforcement:</b> loads the aggregate first, delegates the transition to the
- * domain model (which throws {@link com.thinklab.domain.exception.InvalidAssetStatusException} — HTTP
- * 422 — on an illegal move) and only then issues the granular persistence update together with the
+ * domain model (which throws {@link com.thinklab.domain.exception.InvalidAssetStatusException} — HTTP * 409 — on an illegal move) and only then issues the granular persistence update together with the
  * audit entry — never a blind partial write.
  */
 @Singleton

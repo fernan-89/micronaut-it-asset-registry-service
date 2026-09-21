@@ -5,13 +5,12 @@ package com.thinklab.domain.exception;
  * {@link com.thinklab.domain.model.Asset} (for example, deploying an asset with no location, or
  * mutating a decommissioned asset).
  *
- * <p>RFC 7807 mapping: HTTP 422 Unprocessable Entity (AST-03 State Conflict Handler). The request
- * is syntactically valid but semantically impossible in the aggregate's current state — which is
- * why this Service Domain reports 422 rather than the 409 used for identity collisions.
+ * <p>RFC 7807 mapping: HTTP 409 Conflict (AST-03, ADR-019). The request is well formed but collides with
+ * the aggregate's current state, the same contract used for every other state conflict on the platform.
  */
 public class InvalidAssetStatusException extends BusinessException {
 
-    private static final String ERROR_CODE = "ERR-AST-00422";
+    private static final String ERROR_CODE = "ERR-AST-00409";
 
     public InvalidAssetStatusException(String message) {
         super(ERROR_CODE, message);

@@ -289,7 +289,7 @@ class AssetUseCaseTest {
         StepVerifier.create(new ControlAssetUseCase(assetRepository).execute(assetId, ControlAssetUseCase.Action.DEPLOY, EXECUTOR))
                 .expectErrorSatisfies(error -> {
                     assertEquals(InvalidAssetStatusException.class, error.getClass());
-                    assertEquals("ERR-AST-00422", ((InvalidAssetStatusException) error).getErrorCode());
+                    assertEquals("ERR-AST-00409", ((InvalidAssetStatusException) error).getErrorCode());
                 })
                 .verify();
 

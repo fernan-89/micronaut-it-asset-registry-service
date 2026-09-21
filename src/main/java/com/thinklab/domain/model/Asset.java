@@ -245,7 +245,7 @@ public class Asset {
         /**
          * Validates if the transition from the current state to the target state is legally permitted.
          *
-         * @throws InvalidAssetStatusException (HTTP 422) if the transition violates business compliance
+         * @throws InvalidAssetStatusException (HTTP 409) if the transition violates business compliance
          *                                     rules or is unnecessarily idempotent.
          */
         public void validateTransitionTo(AssetStatus targetStatus) {
