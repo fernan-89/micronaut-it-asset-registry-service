@@ -156,11 +156,16 @@ warmup:
     hash-service: ${HASH_SERVICE_URL:`http://localhost:8080`}/health/liveness
 
 # ----------------------------------------------------------------------------------------------
-# Platform security (thinklab-service-kit SecurityFilter). Off by default; set THINKLAB_SECURITY_ENABLED=true
-# and THINKLAB_JWT_SECRET (>= 32 bytes, shared by every service) to require bearer tokens.
+# Platform security (ADR-020, ADR-021). This service only VERIFIES tokens, with the issuer public keys fetched
+# from its JWKS endpoint, and polls the issuer for revoked sessions. Calls to other services use the
+# client-credentials flow. Off by default; set THINKLAB_SECURITY_ENABLED=true to require bearer tokens.
 # ----------------------------------------------------------------------------------------------
 thinklab:
   security:
     enabled: ${THINKLAB_SECURITY_ENABLED:false}
-    secret: ${THINKLAB_JWT_SECRET:}
     service-name: thinklab-it-asset-registry-service
+    jwks-url: ${THINKLAB_JWKS_URL:http://localhost:8082/party-authentication/v1/.well-known/jwks.json}
+    revocation-url: ${THINKLAB_REVOCATION_URL:http://localhost:8082/party-authentication/v1/session/revoked}
+    token-url: ${THINKLAB_TOKEN_URL:http://localhost:8082/party-authentication/v1/token/service}
+    client-id: thinklab-it-asset-registry-service
+    client-secret: ${THINKLAB_CLIENT_SECRET:}
