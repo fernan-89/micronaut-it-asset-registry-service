@@ -164,8 +164,8 @@ thinklab:
   security:
     enabled: ${THINKLAB_SECURITY_ENABLED:false}
     service-name: thinklab-it-asset-registry-service
-    jwks-url: ${THINKLAB_JWKS_URL:http://localhost:8082/party-authentication/v1/.well-known/jwks.json}
-    revocation-url: ${THINKLAB_REVOCATION_URL:http://localhost:8082/party-authentication/v1/session/revoked}
-    token-url: ${THINKLAB_TOKEN_URL:http://localhost:8082/party-authentication/v1/token/service}
+    jwks-url: ${THINKLAB_JWKS_URL:`http://localhost:8082/party-authentication/v1/.well-known/jwks.json`}
+    revocation-url: ${THINKLAB_REVOCATION_URL:`http://localhost:8082/party-authentication/v1/session/revoked`}
+    token-url: ${THINKLAB_TOKEN_URL:`http://localhost:8082/party-authentication/v1/token/service`}
     client-id: thinklab-it-asset-registry-service
     client-secret: ${THINKLAB_CLIENT_SECRET:}
