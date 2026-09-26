@@ -1,6 +1,9 @@
 package com.thinklab.infrastructure.adapter.out.persistence.repository;
 
 import com.mongodb.MongoClientSettings;
+import com.mongodb.MongoWriteException;
+import com.mongodb.ServerAddress;
+import com.mongodb.WriteError;
 import com.mongodb.client.model.CountOptions;
 import com.mongodb.client.result.InsertOneResult;
 import com.mongodb.client.result.UpdateResult;
@@ -9,6 +12,7 @@ import com.mongodb.reactivestreams.client.MongoClient;
 import com.mongodb.reactivestreams.client.MongoCollection;
 import com.mongodb.reactivestreams.client.MongoDatabase;
 import com.thinklab.domain.exception.AssetNotFoundException;
+import com.thinklab.domain.exception.DuplicateAssetException;
 import com.thinklab.domain.model.Asset;
 import com.thinklab.domain.model.Asset.AssetAuditEntry;
 import com.thinklab.domain.model.Asset.AssetCategory;
@@ -106,6 +110,35 @@ class AssetMongoRepositoryAdapterTest {
         when(mongoCollection.insertOne(any(AssetDocument.class))).thenReturn(Mono.error(new IllegalStateException("mongo down")));
 
         StepVerifier.create(adapter.create(asset)).expectErrorMessage("mongo down").verify();
+    }
+
+    private static MongoWriteException writeError(int code, String message) {
+        return new MongoWriteException(new WriteError(code, message, new BsonDocument()), new ServerAddress());
+    }
+
+    @Test
+    @DisplayName("create maps a duplicate on the serial-number index to DuplicateAssetException (the concurrent-create race)")
+    void createDuplicateSerialNumber() {
+        when(mongoCollection.insertOne(any(AssetDocument.class))).thenReturn(Mono.error(writeError(11000,
+                "E11000 duplicate key error collection: thinklab_asset_db.assets index: organisationId_1_serialNumber_1 dup key")));
+
+        StepVerifier.create(adapter.create(asset))
+                .expectErrorSatisfies(e -> {
+                    assertTrue(e instanceof DuplicateAssetException, e.toString());
+                    assertTrue(e.getMessage().contains("SN-77"), e.getMessage());
+                })
+                .verify();
+    }
+
+    @Test
+    @DisplayName("create propagates other write errors, including a duplicate on another index")
+    void createOtherWriteErrors() {
+        MongoWriteException duplicateId = writeError(11000, "E11000 duplicate key error collection: thinklab_asset_db.assets index: _id_ dup key");
+        MongoWriteException validation = writeError(121, "Document failed validation index: organisationId_1_serialNumber_1");
+        when(mongoCollection.insertOne(any(AssetDocument.class))).thenReturn(Mono.error(duplicateId)).thenReturn(Mono.error(validation));
+
+        StepVerifier.create(adapter.create(asset)).expectErrorMatches(e -> e == duplicateId).verify();
+        StepVerifier.create(adapter.create(asset)).expectErrorMatches(e -> e == validation).verify();
     }
 
     @Test
