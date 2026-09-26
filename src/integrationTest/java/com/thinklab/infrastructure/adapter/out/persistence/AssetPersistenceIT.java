@@ -3,6 +3,7 @@ package com.thinklab.infrastructure.adapter.out.persistence;
 import com.mongodb.client.model.Filters;
 import com.mongodb.reactivestreams.client.MongoClient;
 import com.thinklab.domain.exception.AssetNotFoundException;
+import com.thinklab.domain.exception.DuplicateAssetException;
 import com.thinklab.domain.model.Asset;
 import com.thinklab.domain.model.Asset.AssetAuditEntry;
 import com.thinklab.domain.model.Asset.AssetCategory;
@@ -15,7 +16,9 @@ import org.bson.Document;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -35,8 +38,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /**
  * The Asset aggregate through {@link AssetRepository} against a real MongoDB: the POJO codec with the
  * specifications map and the forensic audit ledger, every partial update appending to that ledger in order,
- * tenant-scoped filtering, the serial-number duplicate check, not-found handling, and the database taken
- * from {@code mongodb.uri}.
+ * tenant-scoped filtering, the serial-number duplicate check and its unique index, not-found handling, and
+ * the database taken from {@code mongodb.uri}.
  */
 @MicronautTest(packages = "com.thinklab", transactional = false)
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
@@ -147,6 +150,36 @@ class AssetPersistenceIT implements TestPropertyProvider {
         assertNull(assets.findById(unknown).block());
         assertThrows(AssetNotFoundException.class, () -> assets.updateStatus(unknown, AssetStatus.READY,
                 audit("STATUS", AssetStatus.PROVISIONED, AssetStatus.READY)).block());
+    }
+
+    @Test
+    @DisplayName("the unique (organisationId, serialNumber) index exists")
+    void serialNumberIndexExists() {
+        assets.create(newAsset(UUID.randomUUID(), AssetCategory.LAPTOP)).block();
+
+        List<Document> indexes = Flux.from(mongoClient.getDatabase(DATABASE).getCollection("assets").listIndexes()).collectList().block();
+
+        assertTrue(indexes.stream().anyMatch(index -> new Document("organisationId", 1).append("serialNumber", 1).equals(index.get("key", Document.class))
+                && Boolean.TRUE.equals(index.getBoolean("unique"))), () -> "assets: " + indexes);
+    }
+
+    @Test
+    @DisplayName("concurrent creations with the same serial number: exactly one wins, the others are DuplicateAssetException")
+    void concurrentDuplicateCreation() {
+        UUID organisation = UUID.randomUUID();
+        String serial = "SN-" + UUID.randomUUID();
+
+        List<String> outcomes = Flux.range(0, 8)
+                .flatMap(i -> assets.create(Asset.createNew(UUID.randomUUID(), organisation, "ThinkPad P1", AssetCategory.LAPTOP, serial,
+                                Map.of(), "it-operator"))
+                        .map(created -> "created")
+                        .onErrorResume(DuplicateAssetException.class, e -> Mono.just("duplicate"))
+                        .subscribeOn(Schedulers.parallel()))
+                .collectList().block();
+
+        assertEquals(1, outcomes.stream().filter("created"::equals).count(), () -> "outcomes: " + outcomes);
+        assertEquals(7, outcomes.stream().filter("duplicate"::equals).count(), () -> "outcomes: " + outcomes);
+        assertEquals(1, assets.findAllByOrganisationId(organisation, null, null).count().block());
     }
 
     private static Set<UUID> ids(List<Asset> list) {

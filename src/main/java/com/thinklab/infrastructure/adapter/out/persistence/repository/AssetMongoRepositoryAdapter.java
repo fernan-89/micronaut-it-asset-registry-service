@@ -1,13 +1,16 @@
 package com.thinklab.infrastructure.adapter.out.persistence.repository;
 
 import com.mongodb.ConnectionString;
+import com.mongodb.ErrorCategory;
 import com.mongodb.MongoClientSettings;
+import com.mongodb.MongoWriteException;
 import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.Updates;
 import com.mongodb.reactivestreams.client.MongoClient;
 import com.mongodb.reactivestreams.client.MongoCollection;
 import io.micronaut.context.annotation.Property;
 import com.thinklab.domain.exception.AssetNotFoundException;
+import com.thinklab.domain.exception.DuplicateAssetException;
 import com.thinklab.domain.model.Asset;
 import com.thinklab.domain.model.Asset.AssetAuditEntry;
 import com.thinklab.domain.model.Asset.AssetCategory;
@@ -90,7 +93,20 @@ public class AssetMongoRepositoryAdapter implements AssetRepository {
 
         return Mono.from(getCollection().insertOne(document))
                 .doOnSuccess(result -> log.debug("[PERSISTENCE] Aggregate successfully created in MongoDB"))
-                .map(result -> asset);
+                .map(result -> asset)
+                .onErrorMap(AssetMongoRepositoryAdapter::isDuplicateSerialNumber, e -> new DuplicateAssetException(String.format(
+                        "An Asset already exists for organisation [%s] and serial number [%s].",
+                        asset.getOrganisationId(), asset.getSerialNumber())));
+    }
+
+    /**
+     * The losing insert of two concurrent creations with the same serial number: the use case's existence
+     * check passed for both, and the unique index ({@link AssetIndexInitializer}) rejected the second.
+     */
+    private static boolean isDuplicateSerialNumber(Throwable error) {
+        return error instanceof MongoWriteException write
+                && write.getError().getCategory() == ErrorCategory.DUPLICATE_KEY
+                && write.getError().getMessage().contains(AssetIndexInitializer.SERIAL_NUMBER_INDEX);
     }
 
     @Override
