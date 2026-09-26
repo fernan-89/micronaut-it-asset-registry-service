@@ -1,10 +1,12 @@
 package com.thinklab.infrastructure.adapter.out.persistence.repository;
 
+import com.mongodb.ConnectionString;
 import com.mongodb.MongoClientSettings;
 import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.Updates;
 import com.mongodb.reactivestreams.client.MongoClient;
 import com.mongodb.reactivestreams.client.MongoCollection;
+import io.micronaut.context.annotation.Property;
 import com.thinklab.domain.exception.AssetNotFoundException;
 import com.thinklab.domain.model.Asset;
 import com.thinklab.domain.model.Asset.AssetAuditEntry;
@@ -29,6 +31,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 
 /**
@@ -41,8 +44,8 @@ import java.util.UUID;
 public class AssetMongoRepositoryAdapter implements AssetRepository {
 
     private static final Logger log = LoggerFactory.getLogger(AssetMongoRepositoryAdapter.class);
-
-    static final String DATABASE_NAME = "thinklab_asset_db";
+    /** Used only when {@code mongodb.uri} names no database. */
+    static final String DEFAULT_DATABASE = "thinklab_asset_db";
     static final String COLLECTION_NAME = "assets";
     private static final String FIELD_ID = "_id";
     private static final String FIELD_UPDATED_AT = "updatedAt";
@@ -60,12 +63,21 @@ public class AssetMongoRepositoryAdapter implements AssetRepository {
 
     private final MongoClient mongoClient;
 
-    public AssetMongoRepositoryAdapter(MongoClient mongoClient) {
+    private final String database;
+
+    /**
+     * The database comes from {@code mongodb.uri}, the same property the MongoDB client and the kit's
+     * warm-up use. It used to be hardcoded, so pointing {@code MONGODB_URI} at another database moved
+     * everything except this adapter's reads and writes.
+     */
+    public AssetMongoRepositoryAdapter(MongoClient mongoClient, @Property(name = "mongodb.uri") String mongoUri) {
         this.mongoClient = mongoClient;
+        String configured = new ConnectionString(Objects.requireNonNull(mongoUri, "mongodb.uri cannot be null.")).getDatabase();
+        this.database = configured != null ? configured : DEFAULT_DATABASE;
     }
 
     private MongoCollection<AssetDocument> getCollection() {
-        return mongoClient.getDatabase(DATABASE_NAME)
+        return mongoClient.getDatabase(database)
                 .getCollection(COLLECTION_NAME, AssetDocument.class)
                 .withCodecRegistry(POJO_CODEC_REGISTRY);
     }

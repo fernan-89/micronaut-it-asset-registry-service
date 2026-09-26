@@ -4,3 +4,7 @@ otel:
 micronaut:
   server:
     port: -1
+thinklab:
+  mongo:
+    # Unit-test contexts have no MongoDB; the integration suite runs against a real one.
+    create-indexes: false
