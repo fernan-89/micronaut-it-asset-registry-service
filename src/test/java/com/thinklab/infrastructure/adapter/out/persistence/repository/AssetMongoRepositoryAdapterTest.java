@@ -68,7 +68,7 @@ class AssetMongoRepositoryAdapterTest {
         when(mongoClient.getDatabase("thinklab_asset_db")).thenReturn(mongoDatabase);
         when(mongoDatabase.getCollection("assets", AssetDocument.class)).thenReturn(mongoCollection);
         when(mongoCollection.withCodecRegistry(any())).thenReturn(mongoCollection);
-        adapter = new AssetMongoRepositoryAdapter(mongoClient);
+        adapter = new AssetMongoRepositoryAdapter(mongoClient, "mongodb://localhost:27017/thinklab_asset_db");
 
         organisationId = UUID.randomUUID();
         assetId = UUID.randomUUID();

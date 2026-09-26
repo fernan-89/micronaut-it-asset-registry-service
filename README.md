@@ -119,6 +119,18 @@ docker build -t thinklab-asset-registry-service:latest .
 `docs/adr/`: 001 hexagonal reactive stack · 003 asset forensic audit ledger · 005 UUID identity
 sovereignty · 013 BIAN service domain conventions · 017 asset lifecycle FSM (HTTP contract superseded by 019) · 019 HTTP 409 for state conflicts.
 
+### Automated Tests
+
+```bash
+./gradlew test               # unit suite + 100% line/branch coverage gate (no Docker needed)
+./gradlew integrationTest    # Testcontainers suite against a real MongoDB replica set (needs Docker)
+./gradlew check              # both, as CI runs it
+```
+
+The integration suite (`src/integrationTest`, platform
+[ADR-025](https://github.com/fernan-89/micronaut-hash-token-registry-service/blob/master/docs/adr/025-integration-tests-with-testcontainers.md))
+runs the Asset aggregate through the repository against a real MongoDB: the specifications map and the forensic audit ledger through the POJO codec, every partial update appending its ledger entry in order, tenant-scoped filtering by status and category, the tenant-scoped serial-number check, not-found handling, and the database taken from `mongodb.uri`.
+
 ## License
 
 Licensed under the [PolyForm Strict License 1.0.0](LICENSE): you may read and use this software for noncommercial purposes only. Modifying it, creating derivative works, redistributing it and any commercial use are not permitted without a separate written license. This software is not open source.
