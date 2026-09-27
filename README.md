@@ -17,6 +17,11 @@ Every asset is scoped to an Organisation from the Party Reference Data Directory
 receives its sovereign UUID from the Hash Token Registry, moves through an explicit lifecycle state
 machine, and carries an immutable forensic audit ledger of every change (ADR-003, ADR-017).
 
+An optional event consumer (`thinklab.events.enabled`) reacts to the IT Hardware Maintenance
+Service's `repair-started`/`repair-completed` events, moving the affected Asset into and out of
+`MAINTENANCE` automatically as a WorkOrder's repair begins and is verified fixed (ADR-026) — no
+synchronous call between the two services, ever.
+
 Built with Java 21 and Micronaut 4.4.2 on a strict Hexagonal Architecture and a fully reactive
 stack (Project Reactor, reactive MongoDB driver).
 
@@ -26,6 +31,7 @@ stack (Project Reactor, reactive MongoDB driver).
 * **Framework:** Micronaut 4.4.2 (AOT optimized, reflection-free DI and Serde)
 * **Reactive Engine:** Project Reactor (Mono / Flux)
 * **Persistence:** Reactive MongoDB (`thinklab_asset_db`, collection `assets`), BSON UUID standard representation
+* **Events:** kit outbox/JetStream consumer (`thinklab.events.enabled`) — reacts to IT Hardware Maintenance's `repair-started`/`repair-completed` events (ADR-026)
 * **Observability:** W3C Trace Context, SLF4J/Logback, Reactor MDC bridge
 * **Containerization:** Google Distroless (nonroot), read-only root filesystem
 * **Testing:** JUnit 5, Mockito, Reactor Test (exhaustive FSM matrix, use cases, controller, adapter, handler)
@@ -113,11 +119,13 @@ docker build -t thinklab-asset-registry-service:latest .
 | `MICRONAUT_SERVER_PORT` | `8083` | HTTP port |
 | `MONGODB_URI` | `mongodb://localhost:27017/thinklab_asset_db` | MongoDB connection |
 | `HASH_SERVICE_URL` | `http://localhost:8080` | Hash Token Registry base URL |
+| `THINKLAB_EVENTS_ENABLED` | `false` | Consume `repair-started`/`repair-completed` from NATS JetStream |
+| `THINKLAB_EVENTS_NATS_URL` | `nats://localhost:4222` | NATS connection, when events are enabled |
 
 ## Architecture Decision Records
 
 `docs/adr/`: 001 hexagonal reactive stack · 003 asset forensic audit ledger · 005 UUID identity
-sovereignty · 013 BIAN service domain conventions · 017 asset lifecycle FSM (HTTP contract superseded by 019) · 019 HTTP 409 for state conflicts.
+sovereignty · 013 BIAN service domain conventions · 017 asset lifecycle FSM (HTTP contract superseded by 019) · 019 HTTP 409 for state conflicts · 026 MAINTENANCE status driven by WorkOrder events.
 
 ### Automated Tests
 

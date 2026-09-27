@@ -51,7 +51,10 @@ repositories {
 }
 
 dependencies {
-    implementation         'com.thinklab:thinklab-service-kit:0.5.0'
+    implementation         'com.thinklab:thinklab-service-kit:0.5.1'
+    // Runtime for the kit's NatsEventPublisher/OutboxRelay (thinklab.events.enabled=true); the kit only
+    // declares it compileOnly (ADR-003 of thinklab-service-kit).
+    implementation         'io.nats:jnats:2.26.3'
 
     // ------------------------------------------------------------------------------------------
     // /**
@@ -143,6 +146,7 @@ testing {
                 implementation 'io.micronaut.mongodb:micronaut-mongo-reactive'
                 implementation 'org.mongodb:mongodb-driver-reactivestreams'
                 implementation 'io.projectreactor:reactor-core'
+                implementation 'io.nats:jnats:2.26.3'
 
             }
             targets.configureEach {

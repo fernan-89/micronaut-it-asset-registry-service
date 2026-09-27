@@ -169,3 +169,13 @@ thinklab:
     token-url: ${THINKLAB_TOKEN_URL:`http://localhost:8082/party-authentication/v1/token/service`}
     client-id: thinklab-it-asset-registry-service
     client-secret: ${THINKLAB_CLIENT_SECRET:}
+
+  # ----------------------------------------------------------------------------------------------
+  # Event backbone (kit ADR-003). This service is a consumer only, of it-hardware-maintenance's
+  # repair-started/repair-completed events (ADR-034 of that service) - it moves the affected Asset
+  # into/out of MAINTENANCE via the existing ControlAssetUseCase, never a new Asset domain method.
+  # Off by default; set THINKLAB_EVENTS_ENABLED=true to consume from NATS JetStream locally.
+  # ----------------------------------------------------------------------------------------------
+  events:
+    enabled: ${THINKLAB_EVENTS_ENABLED:false}
+    nats-url: ${THINKLAB_EVENTS_NATS_URL:`nats://localhost:4222`}
