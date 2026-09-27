@@ -1,5 +1,7 @@
 package com.thinklab.application.dto.event;
 
+import io.micronaut.serde.annotation.Serdeable;
+
 import java.time.Instant;
 import java.util.UUID;
 
@@ -9,5 +11,6 @@ import java.util.UUID;
  * {@code WorkOrderRepairEvent} record - kept as a separate type here rather than a shared library
  * class, since the event backbone's contract is the JSON shape, not a shared Java type.
  */
+@Serdeable
 public record WorkOrderRepairEvent(UUID workOrderId, UUID organisationId, UUID assetId, Instant occurredAt) {
 }
