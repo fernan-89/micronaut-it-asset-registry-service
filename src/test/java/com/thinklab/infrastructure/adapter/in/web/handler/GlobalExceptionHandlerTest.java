@@ -3,6 +3,7 @@ package com.thinklab.infrastructure.adapter.in.web.handler;
 import com.thinklab.domain.exception.AssetNotFoundException;
 import com.thinklab.domain.exception.DuplicateAssetException;
 import com.thinklab.domain.exception.InvalidAssetStatusException;
+import com.thinklab.domain.exception.SpecificationValidationException;
 import io.micronaut.http.HttpHeaders;
 import io.micronaut.http.HttpRequest;
 import io.micronaut.http.HttpResponse;
@@ -78,6 +79,16 @@ class GlobalExceptionHandlerTest {
                 HttpStatus.CONFLICT, "ERR-AST-00409");
 
         assertEquals("Illegal transition", body.get("detail"));
+    }
+
+    @Test
+    @DisplayName("SpecificationValidationException maps to 422 with ERR-AST-00422 and carries the violations list")
+    void specificationValidation() {
+        Map<String, Object> body = assertProblem(
+                exceptionHandler.handle(request, new SpecificationValidationException("Schema violated", java.util.List.of("$.cpu: is missing"))),
+                HttpStatus.UNPROCESSABLE_ENTITY, "ERR-AST-00422");
+
+        assertEquals(java.util.List.of("$.cpu: is missing"), body.get("violations"));
     }
 
     @Test

@@ -55,6 +55,10 @@ dependencies {
     // Runtime for the kit's NatsEventPublisher/OutboxRelay (thinklab.events.enabled=true); the kit only
     // declares it compileOnly (ADR-003 of micronaut-thinklab-service-kit).
     implementation         'io.nats:jnats:2.26.3'
+    // Validates Asset.specifications against a tenant-configured schema fetched from
+    // ci-type-catalog-service (ADR-027) - this service's own copy of the same library that service
+    // uses to syntax-check authored schemas, not a shared JAR.
+    implementation         'com.networknt:json-schema-validator:1.5.6'
 
     // ------------------------------------------------------------------------------------------
     // /**

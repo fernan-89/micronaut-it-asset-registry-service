@@ -32,6 +32,8 @@ micronaut:
     services:
       hash-service:
         url: ${HASH_SERVICE_URL:`http://localhost:8080`}
+      ci-type-catalog-service:
+        url: ${CI_TYPE_CATALOG_SERVICE_URL:`http://localhost:8093`}
 
   # ----------------------------------------------------------------------------------------------
   # /**
@@ -142,6 +144,12 @@ mongodb:
 integrations:
   hash-service:
     url: ${HASH_SERVICE_URL:`http://localhost:8080`}
+    read-timeout: 2s
+    connect-timeout: 1s
+  # Fails open (ADR-027): "not configured" and "unreachable" both skip specification validation
+  # rather than blocking an Asset write, so a short timeout here keeps that fail-open path fast.
+  ci-type-catalog:
+    url: ${CI_TYPE_CATALOG_SERVICE_URL:`http://localhost:8093`}
     read-timeout: 2s
     connect-timeout: 1s
 

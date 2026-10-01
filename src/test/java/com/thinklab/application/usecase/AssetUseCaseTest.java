@@ -6,11 +6,14 @@ import com.thinklab.application.dto.request.UpdateAssetRequest;
 import com.thinklab.domain.exception.AssetNotFoundException;
 import com.thinklab.domain.exception.DuplicateAssetException;
 import com.thinklab.domain.exception.InvalidAssetStatusException;
+import com.thinklab.domain.exception.SpecificationValidationException;
 import com.thinklab.domain.model.Asset;
 import com.thinklab.domain.model.Asset.AssetAuditEntry;
 import com.thinklab.domain.model.Asset.AssetCategory;
 import com.thinklab.domain.model.Asset.AssetStatus;
+import com.thinklab.domain.port.CiTypeCatalogPort;
 import com.thinklab.domain.port.HashServicePort;
+import com.thinklab.domain.port.SpecificationValidatorPort;
 import com.thinklab.domain.repository.AssetRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -23,7 +26,9 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
 
+import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -40,9 +45,12 @@ import static org.mockito.Mockito.when;
 class AssetUseCaseTest {
 
     private static final String EXECUTOR = "ops-admin";
+    private static final String SCHEMA = "{\"type\":\"object\"}";
 
     @Mock private AssetRepository assetRepository;
     @Mock private HashServicePort hashServicePort;
+    @Mock private CiTypeCatalogPort ciTypeCatalogPort;
+    @Mock private SpecificationValidatorPort specificationValidatorPort;
 
     private UUID organisationId;
     private UUID assetId;
@@ -64,10 +72,11 @@ class AssetUseCaseTest {
     @DisplayName("Initiate: should obtain a sovereign ID, persist the aggregate and return the response")
     void initiateSuccess() {
         UUID sovereignId = UUID.randomUUID();
-        InitiateAssetUseCase useCase = new InitiateAssetUseCase(hashServicePort, assetRepository);
+        InitiateAssetUseCase useCase = new InitiateAssetUseCase(hashServicePort, assetRepository, ciTypeCatalogPort, specificationValidatorPort);
         InitiateAssetRequest request = new InitiateAssetRequest("Core Switch", AssetCategory.NETWORK_DEVICE, "SN-77", Map.of("ports", "48"));
 
         when(assetRepository.existsByOrganisationIdAndSerialNumber(organisationId, "SN-77")).thenReturn(Mono.just(false));
+        when(ciTypeCatalogPort.fetchActiveSchema(organisationId, AssetCategory.NETWORK_DEVICE)).thenReturn(Mono.just(Optional.empty()));
         when(hashServicePort.generateSovereignId("asset-creation")).thenReturn(Mono.just(sovereignId));
         when(assetRepository.create(any(Asset.class))).thenAnswer(inv -> Mono.just(inv.getArgument(0)));
 
@@ -81,6 +90,8 @@ class AssetUseCaseTest {
                 })
                 .verifyComplete();
 
+        verifyNoInteractions(specificationValidatorPort);
+
         ArgumentCaptor<Asset> captor = ArgumentCaptor.forClass(Asset.class);
         verify(assetRepository).create(captor.capture());
         assertEquals(1, captor.getValue().getAuditTrail().size());
@@ -90,7 +101,7 @@ class AssetUseCaseTest {
     @Test
     @DisplayName("Initiate: should reject a duplicate serial number (409) before calling the hash service")
     void initiateRejectsDuplicateSerial() {
-        InitiateAssetUseCase useCase = new InitiateAssetUseCase(hashServicePort, assetRepository);
+        InitiateAssetUseCase useCase = new InitiateAssetUseCase(hashServicePort, assetRepository, ciTypeCatalogPort, specificationValidatorPort);
         InitiateAssetRequest request = new InitiateAssetRequest("Core Switch", AssetCategory.NETWORK_DEVICE, "SN-77", null);
 
         when(assetRepository.existsByOrganisationIdAndSerialNumber(organisationId, "SN-77")).thenReturn(Mono.just(true));
@@ -103,22 +114,86 @@ class AssetUseCaseTest {
                 .verify();
 
         verifyNoInteractions(hashServicePort);
+        verifyNoInteractions(ciTypeCatalogPort);
         verify(assetRepository, never()).create(any());
     }
 
     @Test
     @DisplayName("Initiate: should propagate a hash-service failure without persisting anything")
     void initiatePropagatesHashFailure() {
-        InitiateAssetUseCase useCase = new InitiateAssetUseCase(hashServicePort, assetRepository);
+        InitiateAssetUseCase useCase = new InitiateAssetUseCase(hashServicePort, assetRepository, ciTypeCatalogPort, specificationValidatorPort);
         InitiateAssetRequest request = new InitiateAssetRequest("Core Switch", AssetCategory.NETWORK_DEVICE, "SN-77", null);
 
         when(assetRepository.existsByOrganisationIdAndSerialNumber(any(), anyString())).thenReturn(Mono.just(false));
+        when(ciTypeCatalogPort.fetchActiveSchema(any(), any())).thenReturn(Mono.just(Optional.empty()));
         when(hashServicePort.generateSovereignId(anyString())).thenReturn(Mono.error(new IllegalStateException("hash down")));
 
         StepVerifier.create(useCase.execute(organisationId, request, EXECUTOR))
                 .expectErrorMessage("hash down")
                 .verify();
 
+        verify(assetRepository, never()).create(any());
+    }
+
+    @Test
+    @DisplayName("Initiate: should succeed unvalidated when no ACTIVE schema is configured for the category (ADR-027)")
+    void initiateSucceedsWhenNoSchemaConfigured() {
+        UUID sovereignId = UUID.randomUUID();
+        InitiateAssetUseCase useCase = new InitiateAssetUseCase(hashServicePort, assetRepository, ciTypeCatalogPort, specificationValidatorPort);
+        InitiateAssetRequest request = new InitiateAssetRequest("Core Switch", AssetCategory.NETWORK_DEVICE, "SN-77", Map.of("ports", "48"));
+
+        when(assetRepository.existsByOrganisationIdAndSerialNumber(organisationId, "SN-77")).thenReturn(Mono.just(false));
+        when(ciTypeCatalogPort.fetchActiveSchema(organisationId, AssetCategory.NETWORK_DEVICE)).thenReturn(Mono.just(Optional.empty()));
+        when(hashServicePort.generateSovereignId("asset-creation")).thenReturn(Mono.just(sovereignId));
+        when(assetRepository.create(any(Asset.class))).thenAnswer(inv -> Mono.just(inv.getArgument(0)));
+
+        StepVerifier.create(useCase.execute(organisationId, request, EXECUTOR))
+                .expectNextCount(1)
+                .verifyComplete();
+
+        verifyNoInteractions(specificationValidatorPort);
+    }
+
+    @Test
+    @DisplayName("Initiate: should succeed when specifications conform to the configured ACTIVE schema (ADR-027)")
+    void initiateSucceedsWhenSpecificationsConform() {
+        UUID sovereignId = UUID.randomUUID();
+        InitiateAssetUseCase useCase = new InitiateAssetUseCase(hashServicePort, assetRepository, ciTypeCatalogPort, specificationValidatorPort);
+        Map<String, String> specifications = Map.of("ports", "48");
+        InitiateAssetRequest request = new InitiateAssetRequest("Core Switch", AssetCategory.NETWORK_DEVICE, "SN-77", specifications);
+
+        when(assetRepository.existsByOrganisationIdAndSerialNumber(organisationId, "SN-77")).thenReturn(Mono.just(false));
+        when(ciTypeCatalogPort.fetchActiveSchema(organisationId, AssetCategory.NETWORK_DEVICE)).thenReturn(Mono.just(Optional.of(SCHEMA)));
+        when(specificationValidatorPort.validate(SCHEMA, specifications)).thenReturn(List.of());
+        when(hashServicePort.generateSovereignId("asset-creation")).thenReturn(Mono.just(sovereignId));
+        when(assetRepository.create(any(Asset.class))).thenAnswer(inv -> Mono.just(inv.getArgument(0)));
+
+        StepVerifier.create(useCase.execute(organisationId, request, EXECUTOR))
+                .expectNextCount(1)
+                .verifyComplete();
+    }
+
+    @Test
+    @DisplayName("Initiate: should reject specifications that violate the configured ACTIVE schema (422) and never persist")
+    void initiateRejectsNonConformingSpecifications() {
+        InitiateAssetUseCase useCase = new InitiateAssetUseCase(hashServicePort, assetRepository, ciTypeCatalogPort, specificationValidatorPort);
+        Map<String, String> specifications = Map.of("ports", "not-a-number");
+        InitiateAssetRequest request = new InitiateAssetRequest("Core Switch", AssetCategory.NETWORK_DEVICE, "SN-77", specifications);
+
+        when(assetRepository.existsByOrganisationIdAndSerialNumber(organisationId, "SN-77")).thenReturn(Mono.just(false));
+        when(ciTypeCatalogPort.fetchActiveSchema(organisationId, AssetCategory.NETWORK_DEVICE)).thenReturn(Mono.just(Optional.of(SCHEMA)));
+        when(specificationValidatorPort.validate(SCHEMA, specifications)).thenReturn(List.of("$.ports: must be a number"));
+
+        StepVerifier.create(useCase.execute(organisationId, request, EXECUTOR))
+                .expectErrorSatisfies(error -> {
+                    assertEquals(SpecificationValidationException.class, error.getClass());
+                    SpecificationValidationException ex = (SpecificationValidationException) error;
+                    assertEquals("ERR-AST-00422", ex.getErrorCode());
+                    assertEquals(List.of("$.ports: must be a number"), ex.getViolations());
+                })
+                .verify();
+
+        verifyNoInteractions(hashServicePort);
         verify(assetRepository, never()).create(any());
     }
 
@@ -171,12 +246,15 @@ class AssetUseCaseTest {
     @DisplayName("Update: should mutate the aggregate and persist the change together with its audit entry")
     void updateSuccess() {
         when(assetRepository.findById(assetId)).thenReturn(Mono.just(asset));
+        when(ciTypeCatalogPort.fetchActiveSchema(organisationId, AssetCategory.NETWORK_DEVICE)).thenReturn(Mono.just(Optional.empty()));
         when(assetRepository.updateBasicInfo(eq(assetId), eq("Core Switch v2"), eq(Map.of("ports", "96")), any(AssetAuditEntry.class)))
                 .thenReturn(Mono.empty());
 
-        StepVerifier.create(new UpdateAssetUseCase(assetRepository)
+        StepVerifier.create(new UpdateAssetUseCase(assetRepository, ciTypeCatalogPort, specificationValidatorPort)
                         .execute(assetId, new UpdateAssetRequest("Core Switch v2", Map.of("ports", "96")), "tech-9"))
                 .verifyComplete();
+
+        verifyNoInteractions(specificationValidatorPort);
 
         ArgumentCaptor<AssetAuditEntry> captor = ArgumentCaptor.forClass(AssetAuditEntry.class);
         verify(assetRepository).updateBasicInfo(eq(assetId), eq("Core Switch v2"), any(), captor.capture());
@@ -189,23 +267,61 @@ class AssetUseCaseTest {
     void updateNotFound() {
         when(assetRepository.findById(assetId)).thenReturn(Mono.empty());
 
-        StepVerifier.create(new UpdateAssetUseCase(assetRepository)
+        StepVerifier.create(new UpdateAssetUseCase(assetRepository, ciTypeCatalogPort, specificationValidatorPort)
                         .execute(assetId, new UpdateAssetRequest("n", null), EXECUTOR))
                 .expectError(AssetNotFoundException.class)
+                .verify();
+
+        verifyNoInteractions(ciTypeCatalogPort);
+        verify(assetRepository, never()).updateBasicInfo(any(), any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("Update: should reject the mutation of a DECOMMISSIONED asset (409) and never write")
+    void updateRejectedWhenDecommissioned() {
+        asset.decommission(EXECUTOR);
+        when(assetRepository.findById(assetId)).thenReturn(Mono.just(asset));
+        when(ciTypeCatalogPort.fetchActiveSchema(organisationId, AssetCategory.NETWORK_DEVICE)).thenReturn(Mono.just(Optional.empty()));
+
+        StepVerifier.create(new UpdateAssetUseCase(assetRepository, ciTypeCatalogPort, specificationValidatorPort)
+                        .execute(assetId, new UpdateAssetRequest("n", null), EXECUTOR))
+                .expectError(InvalidAssetStatusException.class)
                 .verify();
 
         verify(assetRepository, never()).updateBasicInfo(any(), any(), any(), any());
     }
 
     @Test
-    @DisplayName("Update: should reject the mutation of a DECOMMISSIONED asset (422) and never write")
-    void updateRejectedWhenDecommissioned() {
-        asset.decommission(EXECUTOR);
+    @DisplayName("Update: should succeed when specifications conform to the configured ACTIVE schema (ADR-027)")
+    void updateSucceedsWhenSpecificationsConform() {
+        Map<String, String> specifications = Map.of("ports", "96");
         when(assetRepository.findById(assetId)).thenReturn(Mono.just(asset));
+        when(ciTypeCatalogPort.fetchActiveSchema(organisationId, AssetCategory.NETWORK_DEVICE)).thenReturn(Mono.just(Optional.of(SCHEMA)));
+        when(specificationValidatorPort.validate(SCHEMA, specifications)).thenReturn(List.of());
+        when(assetRepository.updateBasicInfo(eq(assetId), eq("Core Switch v2"), eq(specifications), any(AssetAuditEntry.class)))
+                .thenReturn(Mono.empty());
 
-        StepVerifier.create(new UpdateAssetUseCase(assetRepository)
-                        .execute(assetId, new UpdateAssetRequest("n", null), EXECUTOR))
-                .expectError(InvalidAssetStatusException.class)
+        StepVerifier.create(new UpdateAssetUseCase(assetRepository, ciTypeCatalogPort, specificationValidatorPort)
+                        .execute(assetId, new UpdateAssetRequest("Core Switch v2", specifications), EXECUTOR))
+                .verifyComplete();
+
+        verify(assetRepository).updateBasicInfo(eq(assetId), eq("Core Switch v2"), eq(specifications), any());
+    }
+
+    @Test
+    @DisplayName("Update: should reject specifications that violate the configured ACTIVE schema (422) and never write")
+    void updateRejectsNonConformingSpecifications() {
+        Map<String, String> specifications = Map.of("ports", "not-a-number");
+        when(assetRepository.findById(assetId)).thenReturn(Mono.just(asset));
+        when(ciTypeCatalogPort.fetchActiveSchema(organisationId, AssetCategory.NETWORK_DEVICE)).thenReturn(Mono.just(Optional.of(SCHEMA)));
+        when(specificationValidatorPort.validate(SCHEMA, specifications)).thenReturn(List.of("$.ports: must be a number"));
+
+        StepVerifier.create(new UpdateAssetUseCase(assetRepository, ciTypeCatalogPort, specificationValidatorPort)
+                        .execute(assetId, new UpdateAssetRequest("Core Switch v2", specifications), EXECUTOR))
+                .expectErrorSatisfies(error -> {
+                    assertEquals(SpecificationValidationException.class, error.getClass());
+                    assertEquals("ERR-AST-00422", ((SpecificationValidationException) error).getErrorCode());
+                })
                 .verify();
 
         verify(assetRepository, never()).updateBasicInfo(any(), any(), any(), any());

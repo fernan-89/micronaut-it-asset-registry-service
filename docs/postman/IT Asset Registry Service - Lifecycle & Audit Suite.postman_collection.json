@@ -27,7 +27,7 @@
   "info": {
     "_exporter_id": "39879181",
     "_postman_id": "c4d6e8f0-3a5b-4c7d-9e1f-4a6b8c0d2e3f",
-    "description": "Enterprise-grade E2E Postman Suite for the IT Asset Registry Service Domain (BIAN-aligned, ADR-001/003/005/013/017). Covers the complete Asset lifecycle under /it-asset-registry/v1 (initiate, retrieve, update, assignment/update, control/ready|deploy|maintenance|decommission), tenant-scoped filtered listing, the immutable audit ledger, mandatory X-Tenant-Id/X-Executor auditing, RFC 7807 error_code assertions (400/404/409) and W3C traceparent correlation. Requires an organisationId environment variable populated from the Party Reference Data Directory Service Domain.",
+    "description": "Enterprise-grade E2E Postman Suite for the IT Asset Registry Service Domain (BIAN-aligned, ADR-001/003/005/013/017). Covers the complete Asset lifecycle under /it-asset-registry/v1 (initiate, retrieve, update, assignment/update, control/ready|deploy|maintenance|decommission), tenant-scoped filtered listing, the immutable audit ledger, mandatory X-Tenant-Id/X-Executor auditing, RFC 7807 error_code assertions (400/404/409/422), tenant-configurable specification schema validation via ci-type-catalog-service (ADR-027) and W3C traceparent correlation. Requires an organisationId environment variable populated from the Party Reference Data Directory Service Domain.",
     "name": "IT Asset Registry Service - Lifecycle & Audit Suite",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
@@ -1410,6 +1410,237 @@
                 "deploy"
               ],
               "raw": "{{base_url}}/it-asset-registry/v1/{{illegalTransitionAssetId}}/control/deploy"
+            }
+          }
+        },
+        {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 201 Created', () => pm.response.to.have.status(201));",
+                  "pm.environment.set('specSchemaTypeDefinitionId', pm.response.json().id);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "name": "15. Setup: Initiate TypeDefinition (SERVER) on ci-type-catalog-service",
+          "request": {
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"category\": \"SERVER\",\n  \"jsonSchema\": \"{\\\"type\\\":\\\"object\\\",\\\"required\\\":[\\\"cpu\\\"]}\"\n}"
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{organisationId}}"
+              },
+              {
+                "key": "X-Executor",
+                "value": "{{executor}}"
+              }
+            ],
+            "method": "POST",
+            "url": {
+              "host": [
+                "http://localhost:8093"
+              ],
+              "path": [
+                "ci-type-catalog",
+                "v1",
+                "initiate"
+              ],
+              "raw": "http://localhost:8093/ci-type-catalog/v1/initiate"
+            }
+          }
+        },
+        {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 204 No Content', () => pm.response.to.have.status(204));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "name": "16. Setup: Activate the TypeDefinition",
+          "request": {
+            "header": [
+              {
+                "key": "X-Executor",
+                "value": "{{executor}}"
+              }
+            ],
+            "method": "PUT",
+            "url": {
+              "host": [
+                "http://localhost:8093"
+              ],
+              "path": [
+                "ci-type-catalog",
+                "v1",
+                "{{specSchemaTypeDefinitionId}}",
+                "control",
+                "activate"
+              ],
+              "raw": "http://localhost:8093/ci-type-catalog/v1/{{specSchemaTypeDefinitionId}}/control/activate"
+            }
+          }
+        },
+        {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 201 Created', () => pm.response.to.have.status(201));",
+                  "pm.environment.set('specSchemaAssetId', pm.response.json().id);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "name": "17. Setup: Initiate Asset Conforming to the Schema (for the Update-422 case below)",
+          "request": {
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"DB Server\",\n  \"category\": \"SERVER\",\n  \"serialNumber\": \"SN-SPEC-{{$timestamp}}\",\n  \"specifications\": {\n    \"cpu\": \"Xeon\"\n  }\n}"
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{organisationId}}"
+              },
+              {
+                "key": "X-Executor",
+                "value": "{{executor}}"
+              }
+            ],
+            "method": "POST",
+            "url": {
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "it-asset-registry",
+                "v1",
+                "initiate"
+              ],
+              "raw": "{{base_url}}/it-asset-registry/v1/initiate"
+            }
+          }
+        },
+        {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 422', () => pm.response.to.have.status(422));",
+                  "const json = pm.response.json();",
+                  "pm.test('RFC 7807 error_code is ERR-AST-00422', () => {",
+                  "    pm.expect(json.status).to.eql(422);",
+                  "    pm.expect(json.error_code).to.eql('ERR-AST-00422');",
+                  "});",
+                  "pm.test('violations lists the missing cpu property', () => pm.expect(json.violations.join(' ')).to.include('cpu'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "name": "18. Initiate Asset - Specifications Violate the Configured Schema (422)",
+          "request": {
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"DB Server 2\",\n  \"category\": \"SERVER\",\n  \"serialNumber\": \"SN-SPEC-BAD-{{$timestamp}}\",\n  \"specifications\": {}\n}"
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{organisationId}}"
+              },
+              {
+                "key": "X-Executor",
+                "value": "{{executor}}"
+              }
+            ],
+            "method": "POST",
+            "url": {
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "it-asset-registry",
+                "v1",
+                "initiate"
+              ],
+              "raw": "{{base_url}}/it-asset-registry/v1/initiate"
+            }
+          }
+        },
+        {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 422', () => pm.response.to.have.status(422));",
+                  "const json = pm.response.json();",
+                  "pm.test('RFC 7807 error_code is ERR-AST-00422', () => {",
+                  "    pm.expect(json.status).to.eql(422);",
+                  "    pm.expect(json.error_code).to.eql('ERR-AST-00422');",
+                  "});",
+                  "pm.test('violations lists the missing cpu property', () => pm.expect(json.violations.join(' ')).to.include('cpu'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "name": "19. Update Asset - Specifications Violate the Configured Schema (422)",
+          "request": {
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"DB Server\",\n  \"specifications\": {}\n}"
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Executor",
+                "value": "{{executor}}"
+              }
+            ],
+            "method": "PUT",
+            "url": {
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "it-asset-registry",
+                "v1",
+                "{{specSchemaAssetId}}",
+                "update"
+              ],
+              "raw": "{{base_url}}/it-asset-registry/v1/{{specSchemaAssetId}}/update"
             }
           }
         }

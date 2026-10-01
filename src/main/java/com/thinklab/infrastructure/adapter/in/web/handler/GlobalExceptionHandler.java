@@ -1,6 +1,7 @@
 package com.thinklab.infrastructure.adapter.in.web.handler;
 
 import com.thinklab.domain.exception.BusinessException;
+import com.thinklab.domain.exception.SpecificationValidationException;
 import io.micronaut.context.annotation.Requires;
 import io.micronaut.http.HttpRequest;
 import io.micronaut.http.HttpResponse;
@@ -28,6 +29,11 @@ import java.util.UUID;
  * RFC 7807 "Problem Details" shape (including {@code error_code}).
  *
  * <p><b>HTTP 409 State Conflict (AST-03, ADR-019):</b> an illegal Asset lifecycle transition, like a duplicate serial number, is a well-formed request that collides with the current state, so both map to 409 Conflict ({@code ERR-AST-00409}) — the same contract as every other Service Domain.
+ *
+ * <p><b>HTTP 422 Specification Validation (ADR-027):</b> a {@code specifications} payload that
+ * violates the tenant-configured JSON Schema ({@code ERR-AST-00422}) is semantically invalid content,
+ * independent of the Asset's current state, so it maps to 422 Unprocessable Entity rather than 409 —
+ * and carries the violation messages in a {@code violations} extension member.
  */
 @Produces
 @Singleton
@@ -87,6 +93,7 @@ public class GlobalExceptionHandler implements ExceptionHandler<Throwable, HttpR
     private HttpResponse<Map<String, Object>> handleBusinessException(BusinessException ex, String path) {
         HttpStatus status = switch (ex.getErrorCode()) {
             case "ERR-AST-00404" -> HttpStatus.NOT_FOUND;
+            case "ERR-AST-00422" -> HttpStatus.UNPROCESSABLE_ENTITY;
             default -> HttpStatus.CONFLICT;
         };
 
@@ -98,6 +105,10 @@ public class GlobalExceptionHandler implements ExceptionHandler<Throwable, HttpR
                 ex.getMessage(),
                 path
         );
+
+        if (ex instanceof SpecificationValidationException specEx) {
+            problem.put("violations", specEx.getViolations());
+        }
 
         return HttpResponse.status(status).body(problem);
     }

@@ -22,6 +22,11 @@ Service's `repair-started`/`repair-completed` events, moving the affected Asset 
 `MAINTENANCE` automatically as a WorkOrder's repair begins and is verified fixed (ADR-026) — no
 synchronous call between the two services, ever.
 
+On `initiate` and `update`, the `specifications` payload is validated against the tenant's `ACTIVE`
+JSON Schema for the asset's category, fetched synchronously from `ci-type-catalog-service` — fully
+optional and backward-compatible: no schema configured, or the catalog unreachable, both skip
+validation rather than blocking the write (ADR-027).
+
 Built with Java 21 and Micronaut 4.4.2 on a strict Hexagonal Architecture and a fully reactive
 stack (Project Reactor, reactive MongoDB driver).
 
@@ -82,6 +87,7 @@ any non-terminal -> DECOMMISSIONED (terminal, no exit, no DELETE)
 |---|---|---|
 | `ERR-AST-00404` | 404 | Asset not found |
 | `ERR-AST-00409` | 409 | Serial number already registered, illegal lifecycle transition or policy violation (state conflict) |
+| `ERR-AST-00422` | 422 | `specifications` violate the tenant's configured JSON Schema for the asset's category (ADR-027); carries a `violations` array |
 | `ERR-VALIDATION-00400` | 400 | Payload/header/identifier validation failure |
 | `ERR-INTERNAL-00500` | 500 | Unexpected technical failure |
 
@@ -119,13 +125,15 @@ docker build -t thinklab-asset-registry-service:latest .
 | `MICRONAUT_SERVER_PORT` | `8083` | HTTP port |
 | `MONGODB_URI` | `mongodb://localhost:27017/thinklab_asset_db` | MongoDB connection |
 | `HASH_SERVICE_URL` | `http://localhost:8080` | Hash Token Registry base URL |
+| `CI_TYPE_CATALOG_SERVICE_URL` | `http://localhost:8093` | ci-type-catalog-service base URL (specification schema lookup, ADR-027) |
 | `THINKLAB_EVENTS_ENABLED` | `false` | Consume `repair-started`/`repair-completed` from NATS JetStream |
 | `THINKLAB_EVENTS_NATS_URL` | `nats://localhost:4222` | NATS connection, when events are enabled |
 
 ## Architecture Decision Records
 
 `docs/adr/`: 001 hexagonal reactive stack · 003 asset forensic audit ledger · 005 UUID identity
-sovereignty · 013 BIAN service domain conventions · 017 asset lifecycle FSM (HTTP contract superseded by 019) · 019 HTTP 409 for state conflicts · 026 MAINTENANCE status driven by WorkOrder events.
+sovereignty · 013 BIAN service domain conventions · 017 asset lifecycle FSM (HTTP contract superseded by 019) · 019 HTTP 409 for state conflicts · 026 MAINTENANCE status driven by WorkOrder events ·
+027 tenant-configurable specification schema validation via ci-type-catalog-service.
 
 ### Automated Tests
 
