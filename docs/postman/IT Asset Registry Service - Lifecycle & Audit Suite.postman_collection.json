@@ -1426,11 +1426,11 @@
               }
             }
           ],
-          "name": "15. Setup: Initiate TypeDefinition (SERVER) on ci-type-catalog-service",
+          "name": "15. Setup: Initiate TypeDefinition (MOBILE_DEVICE) on ci-type-catalog-service",
           "request": {
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"category\": \"SERVER\",\n  \"jsonSchema\": \"{\\\"type\\\":\\\"object\\\",\\\"required\\\":[\\\"cpu\\\"]}\"\n}"
+              "raw": "{\n  \"category\": \"MOBILE_DEVICE\",\n  \"jsonSchema\": \"{\\\"type\\\":\\\"object\\\",\\\"required\\\":[\\\"cpu\\\"]}\"\n}"
             },
             "header": [
               {
@@ -1513,7 +1513,7 @@
           "request": {
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"DB Server\",\n  \"category\": \"SERVER\",\n  \"serialNumber\": \"SN-SPEC-{{$timestamp}}\",\n  \"specifications\": {\n    \"cpu\": \"Xeon\"\n  }\n}"
+              "raw": "{\n  \"name\": \"DB Server\",\n  \"category\": \"MOBILE_DEVICE\",\n  \"serialNumber\": \"SN-SPEC-{{$timestamp}}\",\n  \"specifications\": {\n    \"cpu\": \"Xeon\"\n  }\n}"
             },
             "header": [
               {
@@ -1565,7 +1565,7 @@
           "request": {
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"DB Server 2\",\n  \"category\": \"SERVER\",\n  \"serialNumber\": \"SN-SPEC-BAD-{{$timestamp}}\",\n  \"specifications\": {}\n}"
+              "raw": "{\n  \"name\": \"DB Server 2\",\n  \"category\": \"MOBILE_DEVICE\",\n  \"serialNumber\": \"SN-SPEC-BAD-{{$timestamp}}\",\n  \"specifications\": {}\n}"
             },
             "header": [
               {
