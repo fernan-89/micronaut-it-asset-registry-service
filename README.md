@@ -1,3 +1,4 @@
+| `ERR-AST-00503` | 503 | ci-type-catalog-service lookup failed while `thinklab.ci-type-catalog.fail-closed=true` (ADR-027); retry |
 # Thinklab IT Asset Registry Service
 
 **Version:** v1.0.0-BIAN

@@ -1,5 +1,6 @@
 package com.thinklab.infrastructure.adapter.out.integration.citypecatalog;
 
+import com.thinklab.domain.exception.CiTypeCatalogUnavailableException;
 import com.thinklab.domain.model.Asset.AssetCategory;
 import com.thinklab.infrastructure.adapter.out.integration.citypecatalog.CiTypeCatalogServiceAdapter.ActiveSchemaApiResponse;
 import io.micronaut.http.HttpResponse;
@@ -18,6 +19,8 @@ import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
@@ -30,7 +33,7 @@ class CiTypeCatalogServiceAdapterTest {
 
     @BeforeEach
     void setUp() {
-        adapter = new CiTypeCatalogServiceAdapter(apiClient);
+        adapter = new CiTypeCatalogServiceAdapter(apiClient, false);
     }
 
     @Test
@@ -75,6 +78,44 @@ class CiTypeCatalogServiceAdapterTest {
         when(apiClient.fetchActiveSchema(any(), any())).thenReturn(Mono.error(new RuntimeException("connection refused")));
 
         StepVerifier.create(adapter.fetchActiveSchema(UUID.randomUUID(), AssetCategory.NETWORK_DEVICE))
+                .expectNext(Optional.empty())
+                .verifyComplete();
+    }
+
+    @Test
+    @DisplayName("fail-closed: a non-404 HTTP error from the catalog refuses the write (CiTypeCatalogUnavailableException)")
+    void failClosedOtherHttpError() {
+        CiTypeCatalogServiceAdapter strict = new CiTypeCatalogServiceAdapter(apiClient, true);
+        when(apiClient.fetchActiveSchema(any(), any())).thenReturn(Mono.error(new HttpClientResponseException("Bad Gateway",
+                HttpResponse.status(HttpStatus.BAD_GATEWAY))));
+
+        StepVerifier.create(strict.fetchActiveSchema(UUID.randomUUID(), AssetCategory.NETWORK_DEVICE))
+                .expectErrorSatisfies(error -> {
+                    assertInstanceOf(CiTypeCatalogUnavailableException.class, error);
+                    assertEquals("ERR-AST-00503", ((CiTypeCatalogUnavailableException) error).getErrorCode());
+                })
+                .verify();
+    }
+
+    @Test
+    @DisplayName("fail-closed: an unreachable catalog refuses the write (CiTypeCatalogUnavailableException)")
+    void failClosedUnreachable() {
+        CiTypeCatalogServiceAdapter strict = new CiTypeCatalogServiceAdapter(apiClient, true);
+        when(apiClient.fetchActiveSchema(any(), any())).thenReturn(Mono.error(new RuntimeException("connection refused")));
+
+        StepVerifier.create(strict.fetchActiveSchema(UUID.randomUUID(), AssetCategory.NETWORK_DEVICE))
+                .expectError(CiTypeCatalogUnavailableException.class)
+                .verify();
+    }
+
+    @Test
+    @DisplayName("fail-closed: a 404 (no schema configured) still skips validation")
+    void failClosedStillSkipsWhenNotConfigured() {
+        CiTypeCatalogServiceAdapter strict = new CiTypeCatalogServiceAdapter(apiClient, true);
+        when(apiClient.fetchActiveSchema(any(), any())).thenReturn(Mono.error(new HttpClientResponseException("Not Found",
+                HttpResponse.status(HttpStatus.NOT_FOUND))));
+
+        StepVerifier.create(strict.fetchActiveSchema(UUID.randomUUID(), AssetCategory.NETWORK_DEVICE))
                 .expectNext(Optional.empty())
                 .verifyComplete();
     }

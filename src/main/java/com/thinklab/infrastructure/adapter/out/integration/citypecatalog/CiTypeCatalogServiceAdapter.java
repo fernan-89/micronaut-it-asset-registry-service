@@ -1,7 +1,9 @@
 package com.thinklab.infrastructure.adapter.out.integration.citypecatalog;
 
+import com.thinklab.domain.exception.CiTypeCatalogUnavailableException;
 import com.thinklab.domain.model.Asset.AssetCategory;
 import com.thinklab.domain.port.CiTypeCatalogPort;
+import io.micronaut.context.annotation.Property;
 import io.micronaut.core.annotation.Introspected;
 import io.micronaut.http.HttpStatus;
 import io.micronaut.http.annotation.Get;
@@ -33,6 +35,10 @@ import java.util.UUID;
  * ("idempotent, fail-open") and {@code RevocationPoller} ("fails open on poll failure") elsewhere on
  * this platform. The accepted trade-off - a brief catalog outage silently skips validation rather than
  * blocking writes - is documented in ADR-027.
+ *
+ * <p><b>Opt-in strictness:</b> with {@code thinklab.ci-type-catalog.fail-closed=true} a failed lookup (anything
+ * but the catalog's own 404) raises {@link CiTypeCatalogUnavailableException} instead, so the write is refused
+ * with 503. "No schema configured" still skips validation in both modes.
  */
 @Singleton
 public class CiTypeCatalogServiceAdapter implements CiTypeCatalogPort {
@@ -40,9 +46,12 @@ public class CiTypeCatalogServiceAdapter implements CiTypeCatalogPort {
     private static final Logger log = LoggerFactory.getLogger(CiTypeCatalogServiceAdapter.class);
 
     private final CiTypeCatalogApiClient apiClient;
+    private final boolean failClosed;
 
-    public CiTypeCatalogServiceAdapter(CiTypeCatalogApiClient apiClient) {
+    public CiTypeCatalogServiceAdapter(CiTypeCatalogApiClient apiClient,
+                                       @Property(name = "thinklab.ci-type-catalog.fail-closed", defaultValue = "false") boolean failClosed) {
         this.apiClient = apiClient;
+        this.failClosed = failClosed;
     }
 
     @Override
@@ -54,13 +63,21 @@ public class CiTypeCatalogServiceAdapter implements CiTypeCatalogPort {
                 .onErrorResume(HttpClientResponseException.class, error -> {
                     if (error.getStatus() == HttpStatus.NOT_FOUND) {
                         log.debug("[INTEGRATION] No active CI type schema configured for category {}; skipping validation.", category);
-                    } else {
-                        log.warn("[INTEGRATION] ci-type-catalog-service returned {} fetching schema for category {}; failing open (no validation applied).",
-                                error.getStatus(), category);
+                        return Mono.just(Optional.empty());
                     }
+                    if (failClosed) {
+                        return Mono.error(new CiTypeCatalogUnavailableException(
+                                "ci-type-catalog-service returned " + error.getStatus() + " fetching the schema for category " + category, error));
+                    }
+                    log.warn("[INTEGRATION] ci-type-catalog-service returned {} fetching schema for category {}; failing open (no validation applied).",
+                            error.getStatus(), category);
                     return Mono.just(Optional.empty());
                 })
-                .onErrorResume(Throwable.class, error -> {
+                .onErrorResume(error -> !(error instanceof CiTypeCatalogUnavailableException), error -> {
+                    if (failClosed) {
+                        return Mono.error(new CiTypeCatalogUnavailableException(
+                                "ci-type-catalog-service unreachable fetching the schema for category " + category, error));
+                    }
                     log.warn("[INTEGRATION] ci-type-catalog-service unreachable fetching schema for category {}; failing open (no validation applied). Reason: {}",
                             category, error.getMessage());
                     return Mono.just(Optional.empty());

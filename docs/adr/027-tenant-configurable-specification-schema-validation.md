@@ -38,9 +38,12 @@ not preclude this new, correct one.
    "fail-open" by design, per `THINKLAB-SESSION-GUIDE.md`). Accepted trade-off: a brief catalog outage
    silently skips validation rather than blocking Asset writes. A short timeout
    (`integrations.ci-type-catalog.read-timeout: 2s`, `connect-timeout: 1s`) keeps that fail-open path
-   fast rather than stalling the request. A future `thinklab.ci-type-catalog.fail-closed` toggle
-   (default `false`) is the escape hatch if a tenant ever needs strict enforcement; not built now, no
-   tenant has asked for it.
+   fast rather than stalling the request. The `thinklab.ci-type-catalog.fail-closed` toggle
+   (env `CI_TYPE_CATALOG_FAIL_CLOSED`, default `false`) is the escape hatch for strict enforcement: when
+   `true`, a failed lookup (any non-404 HTTP error, timeout, unreachable catalog) raises
+   `CiTypeCatalogUnavailableException` and the write is refused with **503 `ERR-AST-00503`** (retryable;
+   not a 4xx, because the request itself is fine). "No schema configured" (the catalog's 404) skips
+   validation in both modes. The toggle is per deployment, not per tenant.
 3. **Validation runs once, on the write, never retroactively.** Activating or editing a
    `TypeDefinition` in the catalog never revalidates Assets already on record — it only affects the next
    `initiate`/`update` call. This is a deliberate scope boundary for this journey, not a gap: retroactive
@@ -62,8 +65,8 @@ not preclude this new, correct one.
   catalog outage degrades to "no validation" rather than taking down Asset writes.
 - Negative: a tenant that *has* configured and activated a schema gets no signal if the catalog happens
   to be unreachable at the moment of a write — the request silently succeeds unvalidated. Accepted for
-  v1; the `fail-closed` toggle is the documented future mitigation if this trade-off proves wrong for a
-  specific tenant.
+  v1 by default; deployments that need strict enforcement set `fail-closed` (see decision 2) and get a
+  503 instead.
 - Negative: `specifications` entered before a schema existed, or before the relevant `TypeDefinition`
   was activated, remain on record even if they'd now fail validation. No reconciliation job exists; a
   future journey would need to add one if retroactive enforcement is ever required.

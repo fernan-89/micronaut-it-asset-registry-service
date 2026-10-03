@@ -177,6 +177,10 @@ thinklab:
     token-url: ${THINKLAB_TOKEN_URL:`http://localhost:8082/party-authentication/v1/token/service`}
     client-id: thinklab-it-asset-registry-service
     client-secret: ${THINKLAB_CLIENT_SECRET:}
+  ci-type-catalog:
+    # ADR-027: false (default) = fail open, a catalog outage skips specification validation; true = a failed
+    # lookup refuses the write with 503 ERR-AST-00503. "No schema configured" (404) always skips validation.
+    fail-closed: ${CI_TYPE_CATALOG_FAIL_CLOSED:false}
 
   # ----------------------------------------------------------------------------------------------
   # Event backbone (kit ADR-003). This service is a consumer only, of it-hardware-maintenance's

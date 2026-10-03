@@ -34,6 +34,9 @@ import java.util.UUID;
  * violates the tenant-configured JSON Schema ({@code ERR-AST-00422}) is semantically invalid content,
  * independent of the Asset's current state, so it maps to 422 Unprocessable Entity rather than 409 —
  * and carries the violation messages in a {@code violations} extension member.
+ *
+ * <p><b>HTTP 503 Catalog Unavailable (ADR-027):</b> only when {@code thinklab.ci-type-catalog.fail-closed} is on
+ * and the catalog lookup fails ({@code ERR-AST-00503}); a transient, retryable dependency failure.
  */
 @Produces
 @Singleton
@@ -94,6 +97,7 @@ public class GlobalExceptionHandler implements ExceptionHandler<Throwable, HttpR
         HttpStatus status = switch (ex.getErrorCode()) {
             case "ERR-AST-00404" -> HttpStatus.NOT_FOUND;
             case "ERR-AST-00422" -> HttpStatus.UNPROCESSABLE_ENTITY;
+            case "ERR-AST-00503" -> HttpStatus.SERVICE_UNAVAILABLE;
             default -> HttpStatus.CONFLICT;
         };
 

@@ -92,6 +92,13 @@ class GlobalExceptionHandlerTest {
     }
 
     @Test
+    @DisplayName("CiTypeCatalogUnavailableException maps to 503 with ERR-AST-00503")
+    void catalogUnavailable() {
+        assertProblem(exceptionHandler.handle(request, new com.thinklab.domain.exception.CiTypeCatalogUnavailableException("catalog down", new RuntimeException("x"))),
+                HttpStatus.SERVICE_UNAVAILABLE, "ERR-AST-00503");
+    }
+
+    @Test
     @DisplayName("ConstraintViolationException maps to 400 with ERR-VALIDATION-00400")
     void validation() {
         assertProblem(exceptionHandler.handle(request, new ConstraintViolationException("Validation failed", Collections.emptySet())),
