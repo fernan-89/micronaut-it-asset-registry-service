@@ -1643,6 +1643,42 @@
               "raw": "{{base_url}}/it-asset-registry/v1/{{specSchemaAssetId}}/update"
             }
           }
+        },
+        {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 204 No Content', () => pm.response.to.have.status(204));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "name": "20. Teardown: Deactivate the TypeDefinition (no ACTIVE schema left behind in the shared tenant)",
+          "request": {
+            "header": [
+              {
+                "key": "X-Executor",
+                "value": "{{executor}}"
+              }
+            ],
+            "method": "PUT",
+            "url": {
+              "host": [
+                "http://localhost:8093"
+              ],
+              "path": [
+                "ci-type-catalog",
+                "v1",
+                "{{specSchemaTypeDefinitionId}}",
+                "control",
+                "deactivate"
+              ],
+              "raw": "http://localhost:8093/ci-type-catalog/v1/{{specSchemaTypeDefinitionId}}/control/deactivate"
+            }
+          }
         }
       ],
       "name": "02. Negative Tests & Boundary Validation"
