@@ -41,10 +41,10 @@ public class UpdateAssetUseCase {
         this.specificationValidatorPort = specificationValidatorPort;
     }
 
-    public Mono<Void> execute(UUID id, UpdateAssetRequest request, String executor) {
+    public Mono<Void> execute(UUID id, UUID organisationId, UpdateAssetRequest request, String executor) {
         log.info("[USE CASE] Updating basic info for asset ID: {}", id);
 
-        return assetRepository.findById(id)
+        return assetRepository.findById(id, organisationId)
                 .switchIfEmpty(Mono.error(new AssetNotFoundException(id)))
                 .flatMap(asset -> validateSpecifications(asset, request)
                         .then(Mono.defer(() -> {

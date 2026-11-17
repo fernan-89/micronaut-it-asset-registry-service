@@ -49,9 +49,9 @@ class TransitionRaceIT implements TestPropertyProvider {
         return asset;
     }
 
-    private List<String> run(UUID id, ControlAssetUseCase.Action... actions) {
+    private List<String> run(UUID id, UUID organisationId, ControlAssetUseCase.Action... actions) {
         return Flux.fromArray(actions)
-                .flatMap(action -> control.execute(id, action, EXECUTOR).thenReturn("OK:" + action.name())
+                .flatMap(action -> control.execute(id, organisationId, action, EXECUTOR).thenReturn("OK:" + action.name())
                         .onErrorResume(e -> Mono.just(e.getClass().getSimpleName())), actions.length)
                 .collectList().block(Duration.ofSeconds(30));
     }
@@ -63,11 +63,11 @@ class TransitionRaceIT implements TestPropertyProvider {
         ControlAssetUseCase.Action[] ten = new ControlAssetUseCase.Action[10];
         Arrays.fill(ten, ControlAssetUseCase.Action.READY);
 
-        List<String> results = run(asset.getId(), ten);
+        List<String> results = run(asset.getId(), asset.getOrganisationId(), ten);
 
         assertEquals(1, results.stream().filter(r -> r.startsWith("OK")).count(), results.toString());
         assertEquals(9, results.stream().filter(InvalidAssetStatusException.class.getSimpleName()::equals).count(), results.toString());
-        Asset stored = assets.findById(asset.getId()).block();
+        Asset stored = assets.findById(asset.getId(), asset.getOrganisationId()).block();
         assertEquals(AssetStatus.READY, stored.getStatus());
         assertEquals(2, stored.getAuditTrail().size(), "one entry for creating and one for the single transition that won");
     }
@@ -77,11 +77,11 @@ class TransitionRaceIT implements TestPropertyProvider {
     void readyAgainstDecommission() {
         Asset asset = provisioned();
 
-        List<String> results = run(asset.getId(), ControlAssetUseCase.Action.READY, ControlAssetUseCase.Action.DECOMMISSION);
+        List<String> results = run(asset.getId(), asset.getOrganisationId(), ControlAssetUseCase.Action.READY, ControlAssetUseCase.Action.DECOMMISSION);
 
         List<String> winners = results.stream().filter(r -> r.startsWith("OK")).toList();
         assertEquals(1, winners.size(), results.toString());
-        Asset stored = assets.findById(asset.getId()).block();
+        Asset stored = assets.findById(asset.getId(), asset.getOrganisationId()).block();
         assertEquals(winners.get(0).equals("OK:READY") ? AssetStatus.READY : AssetStatus.DECOMMISSIONED, stored.getStatus());
         assertEquals(2, stored.getAuditTrail().size());
     }

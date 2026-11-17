@@ -30,10 +30,10 @@ public class ControlAssetUseCase {
         this.assetRepository = assetRepository;
     }
 
-    public Mono<Void> execute(UUID id, Action action, String executor) {
+    public Mono<Void> execute(UUID id, UUID organisationId, Action action, String executor) {
         log.info("[USE CASE] Controlling asset lifecycle: {} for ID: {}", action, id);
 
-        return assetRepository.findById(id)
+        return assetRepository.findById(id, organisationId)
                 .switchIfEmpty(Mono.error(new AssetNotFoundException(id)))
                 .flatMap(asset -> {
                     AssetAuditEntry entry = action.apply(asset, executor);

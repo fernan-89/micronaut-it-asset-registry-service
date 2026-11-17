@@ -26,7 +26,7 @@ public interface AssetRepository {
 
     Mono<Asset> create(Asset asset);
 
-    Mono<Asset> findById(UUID id);
+    Mono<Asset> findById(UUID id, UUID organisationId);
 
     /**
      * Tenant-scoped listing of Assets belonging to a given Organisation.

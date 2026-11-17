@@ -25,10 +25,10 @@ public class RetrieveAssetUseCase {
         this.assetRepository = assetRepository;
     }
 
-    public Mono<AssetResponse> execute(UUID id) {
+    public Mono<AssetResponse> execute(UUID id, UUID organisationId) {
         log.info("[USE CASE] Retrieving asset ID: {}", id);
 
-        return assetRepository.findById(id)
+        return assetRepository.findById(id, organisationId)
                 .switchIfEmpty(Mono.error(new AssetNotFoundException(id)))
                 .map(AssetMapper::toResponse);
     }

@@ -72,7 +72,7 @@ class AssetPersistenceIT implements TestPropertyProvider {
     void createAndFind() {
         Asset created = assets.create(newAsset(UUID.randomUUID(), AssetCategory.LAPTOP)).block();
 
-        Asset found = assets.findById(created.getId()).block();
+        Asset found = assets.findById(created.getId(), created.getOrganisationId()).block();
 
         assertEquals(created.getSerialNumber(), found.getSerialNumber());
         assertEquals(AssetCategory.LAPTOP, found.getCategory());
@@ -108,7 +108,7 @@ class AssetPersistenceIT implements TestPropertyProvider {
         assets.updateStatus(created.getId(), AssetStatus.READY, ready).block();
         assets.updateAssignment(created.getId(), user, location, assign).block();
 
-        Asset found = assets.findById(created.getId()).block();
+        Asset found = assets.findById(created.getId(), created.getOrganisationId()).block();
         assertEquals("ThinkPad P1 Gen 7", found.getName());
         assertEquals(Map.of("cpu", "Ultra 9"), found.getSpecifications());
         assertEquals(AssetStatus.READY, found.getStatus());
@@ -143,11 +143,21 @@ class AssetPersistenceIT implements TestPropertyProvider {
     }
 
     @Test
+    @DisplayName("an Asset is found by id for its own organisation only: another tenant's is the same as none")
+    void scopedToItsOrganisation() {
+        UUID organisation = UUID.randomUUID();
+        Asset created = assets.create(newAsset(organisation, AssetCategory.LAPTOP)).block();
+
+        assertEquals(created.getId(), assets.findById(created.getId(), organisation).block().getId());
+        assertNull(assets.findById(created.getId(), UUID.randomUUID()).block());
+    }
+
+    @Test
     @DisplayName("an unknown asset is empty on read and AssetNotFoundException on update")
     void notFound() {
         UUID unknown = UUID.randomUUID();
 
-        assertNull(assets.findById(unknown).block());
+        assertNull(assets.findById(unknown, UUID.randomUUID()).block());
         assertThrows(AssetNotFoundException.class, () -> assets.updateStatus(unknown, AssetStatus.READY,
                 audit("STATUS", AssetStatus.PROVISIONED, AssetStatus.READY)).block());
     }

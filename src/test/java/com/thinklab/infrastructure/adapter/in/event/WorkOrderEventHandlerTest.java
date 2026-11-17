@@ -49,13 +49,13 @@ class WorkOrderEventHandlerTest {
     @DisplayName("repair-started moves the asset into MAINTENANCE")
     void repairStartedAppliesMaintenance() throws Exception {
         when(objectMapper.readValue(eq("payload"), eq(WorkOrderRepairEvent.class))).thenReturn(event);
-        when(controlAssetUseCase.execute(eq(event.assetId()), eq(ControlAssetUseCase.Action.MAINTENANCE), any())).thenReturn(Mono.empty());
+        when(controlAssetUseCase.execute(eq(event.assetId()), eq(event.organisationId()), eq(ControlAssetUseCase.Action.MAINTENANCE), any())).thenReturn(Mono.empty());
         when(processedEvents.isProcessed(STARTED + ":" + event.workOrderId())).thenReturn(Mono.just(false));
         when(processedEvents.markProcessed(STARTED + ":" + event.workOrderId())).thenReturn(Mono.empty());
 
         StepVerifier.create(handler.handle(STARTED, "payload")).verifyComplete();
 
-        verify(controlAssetUseCase).execute(event.assetId(), ControlAssetUseCase.Action.MAINTENANCE, "system:it-hardware-maintenance.repair-started");
+        verify(controlAssetUseCase).execute(event.assetId(), event.organisationId(), ControlAssetUseCase.Action.MAINTENANCE, "system:it-hardware-maintenance.repair-started");
         verify(processedEvents).markProcessed(STARTED + ":" + event.workOrderId());
     }
 
@@ -63,13 +63,13 @@ class WorkOrderEventHandlerTest {
     @DisplayName("repair-completed moves the asset back to DEPLOY")
     void repairCompletedAppliesDeploy() throws Exception {
         when(objectMapper.readValue(eq("payload"), eq(WorkOrderRepairEvent.class))).thenReturn(event);
-        when(controlAssetUseCase.execute(eq(event.assetId()), eq(ControlAssetUseCase.Action.DEPLOY), any())).thenReturn(Mono.empty());
+        when(controlAssetUseCase.execute(eq(event.assetId()), eq(event.organisationId()), eq(ControlAssetUseCase.Action.DEPLOY), any())).thenReturn(Mono.empty());
         when(processedEvents.isProcessed(COMPLETED + ":" + event.workOrderId())).thenReturn(Mono.just(false));
         when(processedEvents.markProcessed(COMPLETED + ":" + event.workOrderId())).thenReturn(Mono.empty());
 
         StepVerifier.create(handler.handle(COMPLETED, "payload")).verifyComplete();
 
-        verify(controlAssetUseCase).execute(event.assetId(), ControlAssetUseCase.Action.DEPLOY, "system:it-hardware-maintenance.repair-completed");
+        verify(controlAssetUseCase).execute(event.assetId(), event.organisationId(), ControlAssetUseCase.Action.DEPLOY, "system:it-hardware-maintenance.repair-completed");
     }
 
     @Test
@@ -96,7 +96,7 @@ class WorkOrderEventHandlerTest {
     @DisplayName("a state-mismatch (InvalidAssetStatusException) is recoverable: logged, swallowed, still marked processed")
     void invalidAssetStatusIsRecoverable() throws Exception {
         when(objectMapper.readValue(eq("payload"), eq(WorkOrderRepairEvent.class))).thenReturn(event);
-        when(controlAssetUseCase.execute(any(), any(), any())).thenReturn(Mono.error(new InvalidAssetStatusException("wrong state")));
+        when(controlAssetUseCase.execute(any(), any(), any(), any())).thenReturn(Mono.error(new InvalidAssetStatusException("wrong state")));
         when(processedEvents.isProcessed(any())).thenReturn(Mono.just(false));
         when(processedEvents.markProcessed(any())).thenReturn(Mono.empty());
 
@@ -109,7 +109,7 @@ class WorkOrderEventHandlerTest {
     @DisplayName("a missing asset (AssetNotFoundException) is also recoverable")
     void assetNotFoundIsRecoverable() throws Exception {
         when(objectMapper.readValue(eq("payload"), eq(WorkOrderRepairEvent.class))).thenReturn(event);
-        when(controlAssetUseCase.execute(any(), any(), any())).thenReturn(Mono.error(new AssetNotFoundException(event.assetId())));
+        when(controlAssetUseCase.execute(any(), any(), any(), any())).thenReturn(Mono.error(new AssetNotFoundException(event.assetId())));
         when(processedEvents.isProcessed(any())).thenReturn(Mono.just(false));
         when(processedEvents.markProcessed(any())).thenReturn(Mono.empty());
 
@@ -120,7 +120,7 @@ class WorkOrderEventHandlerTest {
     @DisplayName("an unexpected failure is propagated and never marked processed, so redelivery gets another chance")
     void unexpectedFailurePropagates() throws Exception {
         when(objectMapper.readValue(eq("payload"), eq(WorkOrderRepairEvent.class))).thenReturn(event);
-        when(controlAssetUseCase.execute(any(), any(), any())).thenReturn(Mono.error(new IllegalStateException("mongo down")));
+        when(controlAssetUseCase.execute(any(), any(), any(), any())).thenReturn(Mono.error(new IllegalStateException("mongo down")));
         when(processedEvents.isProcessed(any())).thenReturn(Mono.just(false));
 
         StepVerifier.create(handler.handle(STARTED, "payload")).expectError(IllegalStateException.class).verify();

@@ -75,7 +75,7 @@ public class WorkOrderEventHandler {
         ControlAssetUseCase.Action action = started ? ControlAssetUseCase.Action.MAINTENANCE : ControlAssetUseCase.Action.DEPLOY;
         String executor = "system:it-hardware-maintenance." + (started ? "repair-started" : "repair-completed");
 
-        return controlAssetUseCase.execute(event.assetId(), action, executor)
+        return controlAssetUseCase.execute(event.assetId(), event.organisationId(), action, executor)
                 .onErrorResume(this::isRecoverable, e -> {
                     log.warn("[EVENTS] Could not apply [{}] to asset [{}]: {}", action, event.assetId(), e.getMessage());
                     return Mono.empty();

@@ -44,6 +44,8 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class AssetControllerTest {
 
+    private static final String TENANT = UUID.randomUUID().toString();
+
     private static final String EXECUTOR = "ops-admin";
 
     @Mock private InitiateAssetUseCase initiateAssetUseCase;
@@ -105,9 +107,9 @@ class AssetControllerTest {
     @Test
     @DisplayName("retrieveById should return 200 OK")
     void retrieveById() {
-        when(retrieveAssetUseCase.execute(assetId)).thenReturn(Mono.just(sample));
+        when(retrieveAssetUseCase.execute(assetId, UUID.fromString(TENANT))).thenReturn(Mono.just(sample));
 
-        StepVerifier.create(controller.retrieveById(assetId))
+        StepVerifier.create(controller.retrieveById(assetId, TENANT))
                 .assertNext(response -> {
                     assertEquals(HttpStatus.OK, response.getStatus());
                     assertEquals("Core Switch", response.body().name());
@@ -118,9 +120,9 @@ class AssetControllerTest {
     @Test
     @DisplayName("retrieveById should surface not-found from the use case")
     void retrieveByIdNotFound() {
-        when(retrieveAssetUseCase.execute(assetId)).thenReturn(Mono.error(new AssetNotFoundException(assetId)));
+        when(retrieveAssetUseCase.execute(assetId, UUID.fromString(TENANT))).thenReturn(Mono.error(new AssetNotFoundException(assetId)));
 
-        StepVerifier.create(controller.retrieveById(assetId)).expectError(AssetNotFoundException.class).verify();
+        StepVerifier.create(controller.retrieveById(assetId, TENANT)).expectError(AssetNotFoundException.class).verify();
     }
 
     @Test
@@ -139,21 +141,21 @@ class AssetControllerTest {
     @DisplayName("update should return 204 No Content and pass the executor to the use case")
     void update() {
         UpdateAssetRequest request = new UpdateAssetRequest("Core Switch v2", Map.of());
-        when(updateAssetUseCase.execute(assetId, request, EXECUTOR)).thenReturn(Mono.empty());
+        when(updateAssetUseCase.execute(assetId, UUID.fromString(TENANT), request, EXECUTOR)).thenReturn(Mono.empty());
 
-        StepVerifier.create(controller.update(assetId, EXECUTOR, request))
+        StepVerifier.create(controller.update(assetId, TENANT, EXECUTOR, request))
                 .assertNext(response -> assertEquals(HttpStatus.NO_CONTENT, response.getStatus()))
                 .verifyComplete();
-        verify(updateAssetUseCase).execute(assetId, request, EXECUTOR);
+        verify(updateAssetUseCase).execute(assetId, UUID.fromString(TENANT), request, EXECUTOR);
     }
 
     @Test
     @DisplayName("updateAssignment should return 204 No Content")
     void updateAssignment() {
         AssignAssetRequest request = new AssignAssetRequest(UUID.randomUUID(), UUID.randomUUID());
-        when(assignAssetUseCase.execute(assetId, request, EXECUTOR)).thenReturn(Mono.empty());
+        when(assignAssetUseCase.execute(assetId, UUID.fromString(TENANT), request, EXECUTOR)).thenReturn(Mono.empty());
 
-        StepVerifier.create(controller.updateAssignment(assetId, EXECUTOR, request))
+        StepVerifier.create(controller.updateAssignment(assetId, TENANT, EXECUTOR, request))
                 .assertNext(response -> assertEquals(HttpStatus.NO_CONTENT, response.getStatus()))
                 .verifyComplete();
     }
@@ -161,44 +163,44 @@ class AssetControllerTest {
     @Test
     @DisplayName("each control endpoint should dispatch its action and return 204")
     void controlEndpoints() {
-        when(controlAssetUseCase.execute(eq(assetId), any(ControlAssetUseCase.Action.class), eq(EXECUTOR))).thenReturn(Mono.empty());
+        when(controlAssetUseCase.execute(eq(assetId), eq(UUID.fromString(TENANT)), any(ControlAssetUseCase.Action.class), eq(EXECUTOR))).thenReturn(Mono.empty());
 
-        StepVerifier.create(controller.controlReady(assetId, EXECUTOR))
+        StepVerifier.create(controller.controlReady(assetId, TENANT, EXECUTOR))
                 .assertNext(r -> assertEquals(HttpStatus.NO_CONTENT, r.getStatus())).verifyComplete();
-        StepVerifier.create(controller.controlDeploy(assetId, EXECUTOR))
+        StepVerifier.create(controller.controlDeploy(assetId, TENANT, EXECUTOR))
                 .assertNext(r -> assertEquals(HttpStatus.NO_CONTENT, r.getStatus())).verifyComplete();
-        StepVerifier.create(controller.controlMaintenance(assetId, EXECUTOR))
+        StepVerifier.create(controller.controlMaintenance(assetId, TENANT, EXECUTOR))
                 .assertNext(r -> assertEquals(HttpStatus.NO_CONTENT, r.getStatus())).verifyComplete();
-        StepVerifier.create(controller.controlDecommission(assetId, EXECUTOR))
+        StepVerifier.create(controller.controlDecommission(assetId, TENANT, EXECUTOR))
                 .assertNext(r -> assertEquals(HttpStatus.NO_CONTENT, r.getStatus())).verifyComplete();
 
-        verify(controlAssetUseCase).execute(assetId, ControlAssetUseCase.Action.READY, EXECUTOR);
-        verify(controlAssetUseCase).execute(assetId, ControlAssetUseCase.Action.DEPLOY, EXECUTOR);
-        verify(controlAssetUseCase).execute(assetId, ControlAssetUseCase.Action.MAINTENANCE, EXECUTOR);
-        verify(controlAssetUseCase).execute(assetId, ControlAssetUseCase.Action.DECOMMISSION, EXECUTOR);
+        verify(controlAssetUseCase).execute(assetId, UUID.fromString(TENANT), ControlAssetUseCase.Action.READY, EXECUTOR);
+        verify(controlAssetUseCase).execute(assetId, UUID.fromString(TENANT), ControlAssetUseCase.Action.DEPLOY, EXECUTOR);
+        verify(controlAssetUseCase).execute(assetId, UUID.fromString(TENANT), ControlAssetUseCase.Action.MAINTENANCE, EXECUTOR);
+        verify(controlAssetUseCase).execute(assetId, UUID.fromString(TENANT), ControlAssetUseCase.Action.DECOMMISSION, EXECUTOR);
     }
 
     @Test
     @DisplayName("a control endpoint should surface an illegal transition (409) from the use case")
     void controlIllegalTransition() {
-        when(controlAssetUseCase.execute(assetId, ControlAssetUseCase.Action.DEPLOY, EXECUTOR))
+        when(controlAssetUseCase.execute(assetId, UUID.fromString(TENANT), ControlAssetUseCase.Action.DEPLOY, EXECUTOR))
                 .thenReturn(Mono.error(new InvalidAssetStatusException("illegal")));
 
-        StepVerifier.create(controller.controlDeploy(assetId, EXECUTOR))
+        StepVerifier.create(controller.controlDeploy(assetId, TENANT, EXECUTOR))
                 .expectError(InvalidAssetStatusException.class)
                 .verify();
     }
 
     @Test
-    @DisplayName("retrieveAuditLog should stream the ledger entries")
+    @DisplayName("retrieveAuditLog answers the ledger entries as a list (a Mono, so a missing asset is a 404 through the exception handler)")
     void retrieveAuditLog() {
         AssetAuditEntryResponse entry = new AssetAuditEntryResponse(Instant.now(), "INITIATED", EXECUTOR, null, "PROVISIONED", "d");
-        when(retrieveAssetAuditLogUseCase.execute(assetId)).thenReturn(Flux.just(entry));
+        when(retrieveAssetAuditLogUseCase.execute(assetId, UUID.fromString(TENANT))).thenReturn(Flux.just(entry));
 
-        StepVerifier.create(controller.retrieveAuditLog(assetId))
-                .assertNext(e -> {
-                    assertNotNull(e);
-                    assertEquals("INITIATED", e.action());
+        StepVerifier.create(controller.retrieveAuditLog(assetId, TENANT))
+                .assertNext(entries -> {
+                    assertEquals(1, entries.size());
+                    assertEquals("INITIATED", entries.get(0).action());
                 })
                 .verifyComplete();
     }

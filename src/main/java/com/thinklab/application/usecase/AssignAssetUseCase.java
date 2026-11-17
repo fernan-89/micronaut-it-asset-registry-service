@@ -26,10 +26,10 @@ public class AssignAssetUseCase {
         this.assetRepository = assetRepository;
     }
 
-    public Mono<Void> execute(UUID id, AssignAssetRequest request, String executor) {
+    public Mono<Void> execute(UUID id, UUID organisationId, AssignAssetRequest request, String executor) {
         log.info("[USE CASE] Updating assignment for asset ID: {}", id);
 
-        return assetRepository.findById(id)
+        return assetRepository.findById(id, organisationId)
                 .switchIfEmpty(Mono.error(new AssetNotFoundException(id)))
                 .flatMap(asset -> {
                     AssetAuditEntry entry = asset.assign(request.assignedToUserId(), request.locationId(), executor);
