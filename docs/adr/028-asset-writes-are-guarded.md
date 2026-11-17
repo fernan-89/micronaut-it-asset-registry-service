@@ -15,5 +15,6 @@ changed): no match is `409 ERR-AST-00409` when the asset exists and `404` when i
 
 ## Consequences
 - **Positive:** one winner per race; the stored status and the trail always agree.
-- **Note on events:** an event that loses a race with a person's change gets a 409 and the JetStream subscriber's existing error path (a negative acknowledgement, so
-  the event is delivered again) applies; the retry reads the asset afresh and decides on the current status.
+- **Note on events:** `WorkOrderEventHandler` is deliberately fail-open on a state mismatch (ADR-026): an `InvalidAssetStatusException` is logged and swallowed,
+  the event acknowledged. A work-order event that now loses a race with a person's change is treated the same way as "an operator already moved it by
+  hand", which is what that design already accepts; it is not redelivered. If the event must win such a race, that is a decision for ADR-026, not for this one.
