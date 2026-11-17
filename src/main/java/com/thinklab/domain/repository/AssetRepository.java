@@ -37,6 +37,11 @@ public interface AssetRepository {
      */
     Flux<Asset> findAllByOrganisationId(UUID organisationId, AssetStatus status, AssetCategory category);
 
+    /**
+     * Every {@code update*} below is a <b>guarded write</b> (platform race audit): it applies only if the asset still has the status the caller read, the
+     * {@code fromStatus} of the audit entry it carries; a miss is {@link com.thinklab.domain.exception.InvalidAssetStatusException} (409) when the asset
+     * exists and {@link com.thinklab.domain.exception.AssetNotFoundException} when it does not.
+     */
     Mono<Void> updateBasicInfo(UUID id, String name, Map<String, String> specifications, AssetAuditEntry auditEntry);
 
     Mono<Void> updateAssignment(UUID id, UUID assignedToUserId, UUID locationId, AssetAuditEntry auditEntry);

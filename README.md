@@ -87,7 +87,7 @@ any non-terminal -> DECOMMISSIONED (terminal, no exit, no DELETE)
 | error_code | HTTP | Meaning |
 |---|---|---|
 | `ERR-AST-00404` | 404 | Asset not found |
-| `ERR-AST-00409` | 409 | Serial number already registered, illegal lifecycle transition or policy violation (state conflict) |
+| `ERR-AST-00409` | 409 | Serial number already registered, illegal lifecycle transition or policy violation (state conflict), or a change that lost a race with another on the same asset (ADR-028) |
 | `ERR-AST-00422` | 422 | `specifications` violate the tenant's configured JSON Schema for the asset's category (ADR-027); carries a `violations` array |
 | `ERR-VALIDATION-00400` | 400 | Payload/header/identifier validation failure |
 | `ERR-INTERNAL-00500` | 500 | Unexpected technical failure |

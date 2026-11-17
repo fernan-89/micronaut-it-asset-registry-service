@@ -262,17 +262,38 @@ class AssetMongoRepositoryAdapterTest {
     }
 
     @Test
-    @DisplayName("every partial update should fail with AssetNotFoundException when no document matches")
+    @DisplayName("every guarded update that matches nothing is a 404 when the asset does not exist and a conflict when it does")
     void updatesFailWhenNothingMatches() {
         when(mongoCollection.updateOne(any(Bson.class), any(Bson.class))).thenReturn(Mono.just(UpdateResult.acknowledged(0, 0L, null)));
         AssetAuditEntry auditEntry = entry();
 
+        when(mongoCollection.countDocuments(any(Bson.class))).thenReturn(Mono.just(0L));
         StepVerifier.create(adapter.updateStatus(assetId, AssetStatus.READY, auditEntry))
                 .expectError(AssetNotFoundException.class).verify();
         StepVerifier.create(adapter.updateBasicInfo(assetId, "n", Map.of(), auditEntry))
                 .expectError(AssetNotFoundException.class).verify();
         StepVerifier.create(adapter.updateAssignment(assetId, null, null, auditEntry))
                 .expectError(AssetNotFoundException.class).verify();
+
+        when(mongoCollection.countDocuments(any(Bson.class))).thenReturn(Mono.just(1L));
+        StepVerifier.create(adapter.updateStatus(assetId, AssetStatus.READY, auditEntry))
+                .expectError(com.thinklab.domain.exception.InvalidAssetStatusException.class).verify();
+    }
+
+    @Test
+    @DisplayName("every write filters on the id and on the status that was read (the audit entry's fromStatus)")
+    void writesFilterOnTheStatusRead() {
+        when(mongoCollection.updateOne(any(Bson.class), any(Bson.class))).thenReturn(Mono.just(UpdateResult.acknowledged(1, 1L, null)));
+        AssetAuditEntry auditEntry = entry();
+
+        StepVerifier.create(adapter.updateStatus(assetId, AssetStatus.READY, auditEntry)).verifyComplete();
+
+        org.mockito.ArgumentCaptor<Bson> filter = org.mockito.ArgumentCaptor.forClass(Bson.class);
+        verify(mongoCollection).updateOne(filter.capture(), any(Bson.class));
+        String json = filter.getValue().toBsonDocument(org.bson.BsonDocument.class, org.bson.codecs.configuration.CodecRegistries.fromRegistries(
+                org.bson.codecs.configuration.CodecRegistries.fromCodecs(new org.bson.codecs.UuidCodec(org.bson.UuidRepresentation.STANDARD)),
+                com.mongodb.MongoClientSettings.getDefaultCodecRegistry())).toJson();
+        assertTrue(json.contains("_id") && json.contains("status") && json.contains(auditEntry.fromStatus().name()), json);
     }
 
     @Test

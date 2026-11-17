@@ -10,6 +10,7 @@ import com.mongodb.reactivestreams.client.MongoClient;
 import com.mongodb.reactivestreams.client.MongoCollection;
 import io.micronaut.context.annotation.Property;
 import com.thinklab.domain.exception.AssetNotFoundException;
+import com.thinklab.domain.exception.InvalidAssetStatusException;
 import com.thinklab.domain.exception.DuplicateAssetException;
 import com.thinklab.domain.model.Asset;
 import com.thinklab.domain.model.Asset.AssetAuditEntry;
@@ -145,7 +146,7 @@ public class AssetMongoRepositoryAdapter implements AssetRepository {
                 Updates.push(FIELD_AUDIT_TRAIL, AuditEntryDocument.fromDomain(auditEntry))
         );
 
-        return executeUpdate(id, update);
+        return executeUpdate(id, auditEntry, update);
     }
 
     @Override
@@ -159,7 +160,7 @@ public class AssetMongoRepositoryAdapter implements AssetRepository {
                 Updates.push(FIELD_AUDIT_TRAIL, AuditEntryDocument.fromDomain(auditEntry))
         );
 
-        return executeUpdate(id, update);
+        return executeUpdate(id, auditEntry, update);
     }
 
     @Override
@@ -172,7 +173,7 @@ public class AssetMongoRepositoryAdapter implements AssetRepository {
                 Updates.push(FIELD_AUDIT_TRAIL, AuditEntryDocument.fromDomain(auditEntry))
         );
 
-        return executeUpdate(id, update);
+        return executeUpdate(id, auditEntry, update);
     }
 
     @Override
@@ -188,15 +189,21 @@ public class AssetMongoRepositoryAdapter implements AssetRepository {
     }
 
     /**
-     * Helper that executes a partial update and translates a zero-match result into a domain error.
+     * A guarded write (platform race audit): only if the asset still has the status the caller read, which is the {@code fromStatus} of the audit entry.
+     * No match is a 404 when the asset does not exist and a conflict when it does (someone else changed it since it was read).
      */
-    private Mono<Void> executeUpdate(UUID id, Bson update) {
-        return Mono.from(getCollection().updateOne(Filters.eq(FIELD_ID, id), update))
+    private Mono<Void> executeUpdate(UUID id, AssetAuditEntry auditEntry, Bson update) {
+        Bson filter = Filters.and(Filters.eq(FIELD_ID, id), Filters.eq("status", auditEntry.fromStatus().name()));
+        return Mono.from(getCollection().updateOne(filter, update))
                 .flatMap(result -> {
-                    if (result.getMatchedCount() == 0) {
-                        return Mono.error(new AssetNotFoundException(id));
+                    if (result.getMatchedCount() > 0) {
+                        return Mono.<Void>empty();
                     }
-                    return Mono.empty();
+                    return Mono.from(getCollection().countDocuments(Filters.eq(FIELD_ID, id)))
+                            .flatMap(count -> count == 0
+                                    ? Mono.<Void>error(new AssetNotFoundException(id))
+                                    : Mono.<Void>error(new InvalidAssetStatusException(
+                                            "The asset was changed by someone else while this change was being recorded; read it again and retry.")));
                 });
     }
 }
