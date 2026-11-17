@@ -26,10 +26,10 @@ public class RetrieveAssetAuditLogUseCase {
         this.assetRepository = assetRepository;
     }
 
-    public Flux<AssetAuditEntryResponse> execute(UUID id) {
+    public Flux<AssetAuditEntryResponse> execute(UUID id, UUID organisationId) {
         log.info("[USE CASE] Retrieving audit ledger for asset ID: {}", id);
 
-        return assetRepository.findById(id)
+        return assetRepository.findById(id, organisationId)
                 .switchIfEmpty(Mono.error(new AssetNotFoundException(id)))
                 .flatMapMany(asset -> Flux.fromIterable(asset.getAuditTrail()))
                 .map(AssetMapper::toResponse);

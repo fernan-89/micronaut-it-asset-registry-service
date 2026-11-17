@@ -111,10 +111,10 @@ public class AssetMongoRepositoryAdapter implements AssetRepository {
     }
 
     @Override
-    public Mono<Asset> findById(UUID id) {
+    public Mono<Asset> findById(UUID id, UUID organisationId) {
         log.debug("[PERSISTENCE] Fetching Asset Aggregate by ID: {}", id);
 
-        return Mono.from(getCollection().find(Filters.eq(FIELD_ID, id)).first())
+        return Mono.from(getCollection().find(Filters.and(Filters.eq(FIELD_ID, id), Filters.eq("organisationId", organisationId))).first())
                 .map(AssetPersistenceMapper::toDomain);
     }
 

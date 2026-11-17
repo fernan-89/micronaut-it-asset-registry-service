@@ -69,7 +69,7 @@ any non-terminal -> DECOMMISSIONED (terminal, no exit, no DELETE)
 
 ## BIAN Behavior Qualifier Contract (`/it-asset-registry/v1`)
 
-`X-Tenant-Id` (Organisation UUID) is mandatory on `initiate` and the collection `retrieve`;
+`X-Tenant-Id` (Organisation UUID) is mandatory on every route (ADR-029: another tenant's asset is a 404);
 `X-Executor` is mandatory on every mutation and is recorded in the audit ledger. There is no `DELETE`.
 
 | Behavior Qualifier | Method & Path |

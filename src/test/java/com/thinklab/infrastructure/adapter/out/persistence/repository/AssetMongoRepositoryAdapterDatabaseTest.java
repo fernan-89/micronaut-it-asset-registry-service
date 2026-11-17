@@ -40,7 +40,7 @@ class AssetMongoRepositoryAdapterDatabaseTest {
     void usesTheConfiguredDatabase() {
         MongoClient client = clientServing("inventory");
 
-        new AssetMongoRepositoryAdapter(client, "mongodb://mongo:27017/inventory").findById(UUID.randomUUID()).block();
+        new AssetMongoRepositoryAdapter(client, "mongodb://mongo:27017/inventory").findById(UUID.randomUUID(), UUID.randomUUID()).block();
 
         verify(client).getDatabase("inventory");
     }
@@ -50,7 +50,7 @@ class AssetMongoRepositoryAdapterDatabaseTest {
     void fallsBackToTheDefaultDatabase() {
         MongoClient client = clientServing(AssetMongoRepositoryAdapter.DEFAULT_DATABASE);
 
-        new AssetMongoRepositoryAdapter(client, "mongodb://mongo:27017").findById(UUID.randomUUID()).block();
+        new AssetMongoRepositoryAdapter(client, "mongodb://mongo:27017").findById(UUID.randomUUID(), UUID.randomUUID()).block();
 
         verify(client).getDatabase(AssetMongoRepositoryAdapter.DEFAULT_DATABASE);
     }

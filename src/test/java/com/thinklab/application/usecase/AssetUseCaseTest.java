@@ -202,9 +202,9 @@ class AssetUseCaseTest {
     @Test
     @DisplayName("Retrieve: should project the aggregate to a response")
     void retrieveSuccess() {
-        when(assetRepository.findById(assetId)).thenReturn(Mono.just(asset));
+        when(assetRepository.findById(assetId, organisationId)).thenReturn(Mono.just(asset));
 
-        StepVerifier.create(new RetrieveAssetUseCase(assetRepository).execute(assetId))
+        StepVerifier.create(new RetrieveAssetUseCase(assetRepository).execute(assetId, organisationId))
                 .assertNext(response -> {
                     assertEquals(assetId, response.id());
                     assertEquals("Core Switch", response.name());
@@ -215,9 +215,9 @@ class AssetUseCaseTest {
     @Test
     @DisplayName("Retrieve: should fail with AssetNotFoundException (404) when absent")
     void retrieveNotFound() {
-        when(assetRepository.findById(assetId)).thenReturn(Mono.empty());
+        when(assetRepository.findById(assetId, organisationId)).thenReturn(Mono.empty());
 
-        StepVerifier.create(new RetrieveAssetUseCase(assetRepository).execute(assetId))
+        StepVerifier.create(new RetrieveAssetUseCase(assetRepository).execute(assetId, organisationId))
                 .expectErrorSatisfies(error -> {
                     assertEquals(AssetNotFoundException.class, error.getClass());
                     assertEquals("ERR-AST-00404", ((AssetNotFoundException) error).getErrorCode());
@@ -245,13 +245,13 @@ class AssetUseCaseTest {
     @Test
     @DisplayName("Update: should mutate the aggregate and persist the change together with its audit entry")
     void updateSuccess() {
-        when(assetRepository.findById(assetId)).thenReturn(Mono.just(asset));
+        when(assetRepository.findById(assetId, organisationId)).thenReturn(Mono.just(asset));
         when(ciTypeCatalogPort.fetchActiveSchema(organisationId, AssetCategory.NETWORK_DEVICE)).thenReturn(Mono.just(Optional.empty()));
         when(assetRepository.updateBasicInfo(eq(assetId), eq("Core Switch v2"), eq(Map.of("ports", "96")), any(AssetAuditEntry.class)))
                 .thenReturn(Mono.empty());
 
         StepVerifier.create(new UpdateAssetUseCase(assetRepository, ciTypeCatalogPort, specificationValidatorPort)
-                        .execute(assetId, new UpdateAssetRequest("Core Switch v2", Map.of("ports", "96")), "tech-9"))
+                        .execute(assetId, organisationId, new UpdateAssetRequest("Core Switch v2", Map.of("ports", "96")), "tech-9"))
                 .verifyComplete();
 
         verifyNoInteractions(specificationValidatorPort);
@@ -265,10 +265,10 @@ class AssetUseCaseTest {
     @Test
     @DisplayName("Update: should fail with 404 when the asset does not exist and never write")
     void updateNotFound() {
-        when(assetRepository.findById(assetId)).thenReturn(Mono.empty());
+        when(assetRepository.findById(assetId, organisationId)).thenReturn(Mono.empty());
 
         StepVerifier.create(new UpdateAssetUseCase(assetRepository, ciTypeCatalogPort, specificationValidatorPort)
-                        .execute(assetId, new UpdateAssetRequest("n", null), EXECUTOR))
+                        .execute(assetId, organisationId, new UpdateAssetRequest("n", null), EXECUTOR))
                 .expectError(AssetNotFoundException.class)
                 .verify();
 
@@ -280,11 +280,11 @@ class AssetUseCaseTest {
     @DisplayName("Update: should reject the mutation of a DECOMMISSIONED asset (409) and never write")
     void updateRejectedWhenDecommissioned() {
         asset.decommission(EXECUTOR);
-        when(assetRepository.findById(assetId)).thenReturn(Mono.just(asset));
+        when(assetRepository.findById(assetId, organisationId)).thenReturn(Mono.just(asset));
         when(ciTypeCatalogPort.fetchActiveSchema(organisationId, AssetCategory.NETWORK_DEVICE)).thenReturn(Mono.just(Optional.empty()));
 
         StepVerifier.create(new UpdateAssetUseCase(assetRepository, ciTypeCatalogPort, specificationValidatorPort)
-                        .execute(assetId, new UpdateAssetRequest("n", null), EXECUTOR))
+                        .execute(assetId, organisationId, new UpdateAssetRequest("n", null), EXECUTOR))
                 .expectError(InvalidAssetStatusException.class)
                 .verify();
 
@@ -295,14 +295,14 @@ class AssetUseCaseTest {
     @DisplayName("Update: should succeed when specifications conform to the configured ACTIVE schema (ADR-027)")
     void updateSucceedsWhenSpecificationsConform() {
         Map<String, String> specifications = Map.of("ports", "96");
-        when(assetRepository.findById(assetId)).thenReturn(Mono.just(asset));
+        when(assetRepository.findById(assetId, organisationId)).thenReturn(Mono.just(asset));
         when(ciTypeCatalogPort.fetchActiveSchema(organisationId, AssetCategory.NETWORK_DEVICE)).thenReturn(Mono.just(Optional.of(SCHEMA)));
         when(specificationValidatorPort.validate(SCHEMA, specifications)).thenReturn(List.of());
         when(assetRepository.updateBasicInfo(eq(assetId), eq("Core Switch v2"), eq(specifications), any(AssetAuditEntry.class)))
                 .thenReturn(Mono.empty());
 
         StepVerifier.create(new UpdateAssetUseCase(assetRepository, ciTypeCatalogPort, specificationValidatorPort)
-                        .execute(assetId, new UpdateAssetRequest("Core Switch v2", specifications), EXECUTOR))
+                        .execute(assetId, organisationId, new UpdateAssetRequest("Core Switch v2", specifications), EXECUTOR))
                 .verifyComplete();
 
         verify(assetRepository).updateBasicInfo(eq(assetId), eq("Core Switch v2"), eq(specifications), any());
@@ -312,12 +312,12 @@ class AssetUseCaseTest {
     @DisplayName("Update: should reject specifications that violate the configured ACTIVE schema (422) and never write")
     void updateRejectsNonConformingSpecifications() {
         Map<String, String> specifications = Map.of("ports", "not-a-number");
-        when(assetRepository.findById(assetId)).thenReturn(Mono.just(asset));
+        when(assetRepository.findById(assetId, organisationId)).thenReturn(Mono.just(asset));
         when(ciTypeCatalogPort.fetchActiveSchema(organisationId, AssetCategory.NETWORK_DEVICE)).thenReturn(Mono.just(Optional.of(SCHEMA)));
         when(specificationValidatorPort.validate(SCHEMA, specifications)).thenReturn(List.of("$.ports: must be a number"));
 
         StepVerifier.create(new UpdateAssetUseCase(assetRepository, ciTypeCatalogPort, specificationValidatorPort)
-                        .execute(assetId, new UpdateAssetRequest("Core Switch v2", specifications), EXECUTOR))
+                        .execute(assetId, organisationId, new UpdateAssetRequest("Core Switch v2", specifications), EXECUTOR))
                 .expectErrorSatisfies(error -> {
                     assertEquals(SpecificationValidationException.class, error.getClass());
                     assertEquals("ERR-AST-00422", ((SpecificationValidationException) error).getErrorCode());
@@ -331,12 +331,12 @@ class AssetUseCaseTest {
     @DisplayName("Assign: should persist the assignment with an ASSIGNED audit entry")
     void assignSuccess() {
         UUID holder = UUID.randomUUID();
-        when(assetRepository.findById(assetId)).thenReturn(Mono.just(asset));
+        when(assetRepository.findById(assetId, organisationId)).thenReturn(Mono.just(asset));
         when(assetRepository.updateAssignment(eq(assetId), eq(holder), eq(locationId), any(AssetAuditEntry.class)))
                 .thenReturn(Mono.empty());
 
         StepVerifier.create(new AssignAssetUseCase(assetRepository)
-                        .execute(assetId, new AssignAssetRequest(holder, locationId), EXECUTOR))
+                        .execute(assetId, organisationId, new AssignAssetRequest(holder, locationId), EXECUTOR))
                 .verifyComplete();
 
         ArgumentCaptor<AssetAuditEntry> captor = ArgumentCaptor.forClass(AssetAuditEntry.class);
@@ -347,10 +347,10 @@ class AssetUseCaseTest {
     @Test
     @DisplayName("Assign: should fail with 404 when the asset does not exist")
     void assignNotFound() {
-        when(assetRepository.findById(assetId)).thenReturn(Mono.empty());
+        when(assetRepository.findById(assetId, organisationId)).thenReturn(Mono.empty());
 
         StepVerifier.create(new AssignAssetUseCase(assetRepository)
-                        .execute(assetId, new AssignAssetRequest(null, null), EXECUTOR))
+                        .execute(assetId, organisationId, new AssignAssetRequest(null, null), EXECUTOR))
                 .expectError(AssetNotFoundException.class)
                 .verify();
     }
@@ -361,10 +361,10 @@ class AssetUseCaseTest {
         asset.assign(null, locationId, EXECUTOR);
         asset.markReady(EXECUTOR);
         asset.deploy(EXECUTOR);
-        when(assetRepository.findById(assetId)).thenReturn(Mono.just(asset));
+        when(assetRepository.findById(assetId, organisationId)).thenReturn(Mono.just(asset));
 
         StepVerifier.create(new AssignAssetUseCase(assetRepository)
-                        .execute(assetId, new AssignAssetRequest(null, null), EXECUTOR))
+                        .execute(assetId, organisationId, new AssignAssetRequest(null, null), EXECUTOR))
                 .expectError(InvalidAssetStatusException.class)
                 .verify();
 
@@ -376,10 +376,10 @@ class AssetUseCaseTest {
     @Test
     @DisplayName("Control: READY on a PROVISIONED asset persists the new status with its audit entry")
     void controlReady() {
-        when(assetRepository.findById(assetId)).thenReturn(Mono.just(asset));
+        when(assetRepository.findById(assetId, organisationId)).thenReturn(Mono.just(asset));
         when(assetRepository.updateStatus(eq(assetId), eq(AssetStatus.READY), any(AssetAuditEntry.class))).thenReturn(Mono.empty());
 
-        StepVerifier.create(new ControlAssetUseCase(assetRepository).execute(assetId, ControlAssetUseCase.Action.READY, EXECUTOR))
+        StepVerifier.create(new ControlAssetUseCase(assetRepository).execute(assetId, organisationId, ControlAssetUseCase.Action.READY, EXECUTOR))
                 .verifyComplete();
 
         ArgumentCaptor<AssetAuditEntry> captor = ArgumentCaptor.forClass(AssetAuditEntry.class);
@@ -400,9 +400,9 @@ class AssetUseCaseTest {
     @Test
     @DisplayName("Control: DEPLOY on a PROVISIONED asset is an illegal transition (422) and never writes")
     void controlIllegalTransition() {
-        when(assetRepository.findById(assetId)).thenReturn(Mono.just(asset));
+        when(assetRepository.findById(assetId, organisationId)).thenReturn(Mono.just(asset));
 
-        StepVerifier.create(new ControlAssetUseCase(assetRepository).execute(assetId, ControlAssetUseCase.Action.DEPLOY, EXECUTOR))
+        StepVerifier.create(new ControlAssetUseCase(assetRepository).execute(assetId, organisationId, ControlAssetUseCase.Action.DEPLOY, EXECUTOR))
                 .expectErrorSatisfies(error -> {
                     assertEquals(InvalidAssetStatusException.class, error.getClass());
                     assertEquals("ERR-AST-00409", ((InvalidAssetStatusException) error).getErrorCode());
@@ -415,9 +415,9 @@ class AssetUseCaseTest {
     @Test
     @DisplayName("Control: should fail with 404 when the asset does not exist")
     void controlNotFound() {
-        when(assetRepository.findById(assetId)).thenReturn(Mono.empty());
+        when(assetRepository.findById(assetId, organisationId)).thenReturn(Mono.empty());
 
-        StepVerifier.create(new ControlAssetUseCase(assetRepository).execute(assetId, ControlAssetUseCase.Action.DECOMMISSION, EXECUTOR))
+        StepVerifier.create(new ControlAssetUseCase(assetRepository).execute(assetId, organisationId, ControlAssetUseCase.Action.DECOMMISSION, EXECUTOR))
                 .expectError(AssetNotFoundException.class)
                 .verify();
     }
@@ -425,10 +425,10 @@ class AssetUseCaseTest {
     @Test
     @DisplayName("Control: DECOMMISSION drives the terminal transition")
     void controlDecommission() {
-        when(assetRepository.findById(assetId)).thenReturn(Mono.just(asset));
+        when(assetRepository.findById(assetId, organisationId)).thenReturn(Mono.just(asset));
         when(assetRepository.updateStatus(eq(assetId), eq(AssetStatus.DECOMMISSIONED), any())).thenReturn(Mono.empty());
 
-        StepVerifier.create(new ControlAssetUseCase(assetRepository).execute(assetId, ControlAssetUseCase.Action.DECOMMISSION, EXECUTOR))
+        StepVerifier.create(new ControlAssetUseCase(assetRepository).execute(assetId, organisationId, ControlAssetUseCase.Action.DECOMMISSION, EXECUTOR))
                 .verifyComplete();
     }
 
@@ -438,9 +438,9 @@ class AssetUseCaseTest {
     @DisplayName("Audit log: should project every ledger entry in order")
     void auditLogSuccess() {
         asset.markReady(EXECUTOR);
-        when(assetRepository.findById(assetId)).thenReturn(Mono.just(asset));
+        when(assetRepository.findById(assetId, organisationId)).thenReturn(Mono.just(asset));
 
-        StepVerifier.create(new RetrieveAssetAuditLogUseCase(assetRepository).execute(assetId))
+        StepVerifier.create(new RetrieveAssetAuditLogUseCase(assetRepository).execute(assetId, organisationId))
                 .assertNext(entry -> assertEquals("INITIATED", entry.action()))
                 .assertNext(entry -> {
                     assertEquals("STATUS_CHANGED", entry.action());
@@ -454,10 +454,24 @@ class AssetUseCaseTest {
     @Test
     @DisplayName("Audit log: should fail with 404 when the asset does not exist")
     void auditLogNotFound() {
-        when(assetRepository.findById(assetId)).thenReturn(Mono.empty());
+        when(assetRepository.findById(assetId, organisationId)).thenReturn(Mono.empty());
 
-        StepVerifier.create(new RetrieveAssetAuditLogUseCase(assetRepository).execute(assetId))
+        StepVerifier.create(new RetrieveAssetAuditLogUseCase(assetRepository).execute(assetId, organisationId))
                 .expectError(AssetNotFoundException.class)
                 .verify();
+    }
+
+    @Test
+    @DisplayName("every by-id lookup is made in the caller's tenant: another tenant's asset is the same as none, and nothing is written")
+    void anotherTenantsAsset() {
+        UUID other = UUID.randomUUID();
+        when(assetRepository.findById(assetId, other)).thenReturn(Mono.empty());
+
+        StepVerifier.create(new RetrieveAssetUseCase(assetRepository).execute(assetId, other)).expectError(AssetNotFoundException.class).verify();
+        StepVerifier.create(new RetrieveAssetAuditLogUseCase(assetRepository).execute(assetId, other)).expectError(AssetNotFoundException.class).verify();
+        StepVerifier.create(new ControlAssetUseCase(assetRepository).execute(assetId, other, ControlAssetUseCase.Action.READY, EXECUTOR)).expectError(AssetNotFoundException.class).verify();
+
+        org.mockito.Mockito.verify(assetRepository, org.mockito.Mockito.never()).findById(assetId, organisationId);
+        org.mockito.Mockito.verifyNoMoreInteractions(assetRepository);
     }
 }

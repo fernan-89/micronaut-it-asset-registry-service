@@ -148,7 +148,7 @@ class AssetMongoRepositoryAdapterTest {
         when(mongoCollection.find(any(Bson.class))).thenReturn(publisher);
         when(publisher.first()).thenReturn(Mono.just(AssetPersistenceMapper.toDocument(asset)));
 
-        StepVerifier.create(adapter.findById(assetId))
+        StepVerifier.create(adapter.findById(assetId, UUID.randomUUID()))
                 .expectNextMatches(found -> found.getId().equals(assetId)
                         && found.getStatus() == AssetStatus.PROVISIONED
                         && found.getAuditTrail().size() == 1)
@@ -162,7 +162,7 @@ class AssetMongoRepositoryAdapterTest {
         when(mongoCollection.find(any(Bson.class))).thenReturn(publisher);
         when(publisher.first()).thenReturn(Mono.empty());
 
-        StepVerifier.create(adapter.findById(assetId)).verifyComplete();
+        StepVerifier.create(adapter.findById(assetId, UUID.randomUUID())).verifyComplete();
     }
 
     @Test

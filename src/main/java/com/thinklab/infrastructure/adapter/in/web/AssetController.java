@@ -28,7 +28,6 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.util.List;
@@ -94,10 +93,10 @@ public class AssetController {
 
     /** Behavior Qualifier: {@code retrieve}. Fetches a single Asset by UUID. */
     @Get("/{id}/retrieve")
-    public Mono<HttpResponse<AssetResponse>> retrieveById(@PathVariable UUID id) {
+    public Mono<HttpResponse<AssetResponse>> retrieveById(@PathVariable UUID id, @Header(TENANT_HEADER) @NotBlank String tenantId) {
         log.info("[ACTION: RETRIEVE_ASSET] Received request to get asset by ID: {}", id);
 
-        return retrieveAssetUseCase.execute(id).map(HttpResponse::ok);
+        return retrieveAssetUseCase.execute(id, UUID.fromString(tenantId)).map(HttpResponse::ok);
     }
 
     /** Behavior Qualifier: {@code retrieve} (collection). Lists Assets scoped to a tenant. */
@@ -116,62 +115,63 @@ public class AssetController {
     /** Behavior Qualifier: {@code update}. Updates the descriptive information of an Asset. */
     @Put("/{id}/update")
     public Mono<HttpResponse<Void>> update(
-            @PathVariable UUID id,
+            @PathVariable UUID id, @Header(TENANT_HEADER) @NotBlank String tenantId,
             @Header(EXECUTOR_HEADER) @NotBlank String executor,
             @Body @Valid UpdateAssetRequest request
     ) {
         log.info("[ACTION: UPDATE_ASSET] [EXECUTOR: {}] Received request to update asset ID: {}", executor, id);
 
-        return updateAssetUseCase.execute(id, request, executor).thenReturn(HttpResponse.noContent());
+        return updateAssetUseCase.execute(id, UUID.fromString(tenantId), request, executor).thenReturn(HttpResponse.noContent());
     }
 
     /** Behavior Qualifier: {@code assignment/update}. Binds the Asset to a holder and/or location. */
     @Put("/{id}/assignment/update")
     public Mono<HttpResponse<Void>> updateAssignment(
-            @PathVariable UUID id,
+            @PathVariable UUID id, @Header(TENANT_HEADER) @NotBlank String tenantId,
             @Header(EXECUTOR_HEADER) @NotBlank String executor,
             @Body @Valid AssignAssetRequest request
     ) {
         log.info("[ACTION: ASSIGN_ASSET] [EXECUTOR: {}] Received request to update assignment for asset ID: {}", executor, id);
 
-        return assignAssetUseCase.execute(id, request, executor).thenReturn(HttpResponse.noContent());
+        return assignAssetUseCase.execute(id, UUID.fromString(tenantId), request, executor).thenReturn(HttpResponse.noContent());
     }
 
     /** Behavior Qualifier: {@code control/ready}. Marks the Asset as ready (in stock). */
     @Put("/{id}/control/ready")
-    public Mono<HttpResponse<Void>> controlReady(@PathVariable UUID id, @Header(EXECUTOR_HEADER) @NotBlank String executor) {
-        return control(id, ControlAssetUseCase.Action.READY, executor);
+    public Mono<HttpResponse<Void>> controlReady(@PathVariable UUID id, @Header(TENANT_HEADER) @NotBlank String tenantId, @Header(EXECUTOR_HEADER) @NotBlank String executor) {
+        return control(id, tenantId, ControlAssetUseCase.Action.READY, executor);
     }
 
     /** Behavior Qualifier: {@code control/deploy}. Requires a location to be assigned. */
     @Put("/{id}/control/deploy")
-    public Mono<HttpResponse<Void>> controlDeploy(@PathVariable UUID id, @Header(EXECUTOR_HEADER) @NotBlank String executor) {
-        return control(id, ControlAssetUseCase.Action.DEPLOY, executor);
+    public Mono<HttpResponse<Void>> controlDeploy(@PathVariable UUID id, @Header(TENANT_HEADER) @NotBlank String tenantId, @Header(EXECUTOR_HEADER) @NotBlank String executor) {
+        return control(id, tenantId, ControlAssetUseCase.Action.DEPLOY, executor);
     }
 
     /** Behavior Qualifier: {@code control/maintenance}. Pulls a deployed Asset into maintenance. */
     @Put("/{id}/control/maintenance")
-    public Mono<HttpResponse<Void>> controlMaintenance(@PathVariable UUID id, @Header(EXECUTOR_HEADER) @NotBlank String executor) {
-        return control(id, ControlAssetUseCase.Action.MAINTENANCE, executor);
+    public Mono<HttpResponse<Void>> controlMaintenance(@PathVariable UUID id, @Header(TENANT_HEADER) @NotBlank String tenantId, @Header(EXECUTOR_HEADER) @NotBlank String executor) {
+        return control(id, tenantId, ControlAssetUseCase.Action.MAINTENANCE, executor);
     }
 
     /** Behavior Qualifier: {@code control/decommission}. Terminal, soft — no physical DELETE exists. */
     @Put("/{id}/control/decommission")
-    public Mono<HttpResponse<Void>> controlDecommission(@PathVariable UUID id, @Header(EXECUTOR_HEADER) @NotBlank String executor) {
-        return control(id, ControlAssetUseCase.Action.DECOMMISSION, executor);
+    public Mono<HttpResponse<Void>> controlDecommission(@PathVariable UUID id, @Header(TENANT_HEADER) @NotBlank String tenantId, @Header(EXECUTOR_HEADER) @NotBlank String executor) {
+        return control(id, tenantId, ControlAssetUseCase.Action.DECOMMISSION, executor);
     }
 
     /** Behavior Qualifier: {@code audit-log/retrieve}. Immutable forensic ledger of the Asset. */
     @Get("/{id}/audit-log/retrieve")
-    public Flux<AssetAuditEntryResponse> retrieveAuditLog(@PathVariable UUID id) {
+    public Mono<List<AssetAuditEntryResponse>> retrieveAuditLog(@PathVariable UUID id, @Header(TENANT_HEADER) @NotBlank String tenantId) {
         log.info("[ACTION: RETRIEVE_ASSET_AUDIT_LOG] Received request for audit ledger of asset ID: {}", id);
 
-        return retrieveAssetAuditLogUseCase.execute(id);
+        // A Mono, not a Flux: an error of a Flux is not handled by the exception handler, so an asset that is not there (or is another tenant's) was a 500, not a 404.
+        return Mono.defer(() -> retrieveAssetAuditLogUseCase.execute(id, UUID.fromString(tenantId)).collectList());
     }
 
-    private Mono<HttpResponse<Void>> control(UUID id, ControlAssetUseCase.Action action, String executor) {
+    private Mono<HttpResponse<Void>> control(UUID id, String tenantId, ControlAssetUseCase.Action action, String executor) {
         log.info("[ACTION: CONTROL_ASSET] [EXECUTOR: {}] {} for ID: {}", executor, action, id);
 
-        return controlAssetUseCase.execute(id, action, executor).thenReturn(HttpResponse.noContent());
+        return controlAssetUseCase.execute(id, UUID.fromString(tenantId), action, executor).thenReturn(HttpResponse.noContent());
     }
 }
